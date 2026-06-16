@@ -1,0 +1,3254 @@
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
+	<External>null</External>
+	<External>nil</External>
+	<Item class="Script" referent="RBXBF0A82658FA84EEB8B7C2A38B4EFF041">
+		<Properties>
+			<ProtectedString name="Source"><![CDATA[-- MotionForge v1.3.1 - Complete Combat Move Builder Plugin (Fixed)
+-- Created by Gorrilla567_h (Roblox)
+-- Free & Open Source - MIT License
+-- GitHub: https://github.com/Gorrilla567_h/MotionForge
+
+local plugin = plugin
+
+local toolbar = plugin:CreateToolbar("MotionForge")
+local button = toolbar:CreateButton("Open Editor", "Build custom combat moves", "")
+
+local widgetInfo = DockWidgetPluginGuiInfo.new(
+	Enum.InitialDockState.Left,
+	false,
+	true,
+	380, 560, 320, 480
+)
+
+local mainGui = plugin:CreateDockWidgetPluginGui("MotionForgeEditor", widgetInfo)
+mainGui.Title = "MotionForge"
+
+-- MAIN FRAME
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(1, 0, 1, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = mainGui
+
+-- TOP BAR
+local topBar = Instance.new("Frame")
+topBar.Size = UDim2.new(1, 0, 0, 48)
+topBar.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+topBar.BorderSizePixel = 0
+topBar.Parent = mainFrame
+
+local logoText = Instance.new("TextLabel")
+logoText.Text = "⚡ MotionForge"
+logoText.TextColor3 = Color3.fromRGB(255, 255, 255)
+logoText.TextSize = 16
+logoText.Font = Enum.Font.GothamSemibold
+logoText.TextXAlignment = Enum.TextXAlignment.Left
+logoText.BackgroundTransparency = 1
+logoText.Size = UDim2.new(1, -200, 1, 0)
+logoText.Position = UDim2.new(0, 12, 0, 0)
+logoText.Parent = topBar
+
+local versionBadge = Instance.new("TextLabel")
+versionBadge.Text = "v1.3.1"
+versionBadge.TextColor3 = Color3.fromRGB(100, 100, 110)
+versionBadge.TextSize = 11
+versionBadge.Font = Enum.Font.Gotham
+versionBadge.TextXAlignment = Enum.TextXAlignment.Right
+versionBadge.BackgroundTransparency = 1
+versionBadge.Size = UDim2.new(0, 50, 1, 0)
+versionBadge.Position = UDim2.new(1, -55, 0, 0)
+versionBadge.Parent = topBar
+
+-- Creator Credit
+local creatorCredit = Instance.new("TextLabel")
+creatorCredit.Text = "by Gorrilla567_h"
+creatorCredit.TextColor3 = Color3.fromRGB(80, 80, 90)
+creatorCredit.TextSize = 10
+creatorCredit.Font = Enum.Font.Gotham
+creatorCredit.TextXAlignment = Enum.TextXAlignment.Right
+creatorCredit.BackgroundTransparency = 1
+creatorCredit.Size = UDim2.new(0, 120, 1, 0)
+creatorCredit.Position = UDim2.new(1, -130, 0, 0)
+creatorCredit.Parent = topBar
+
+-- SCROLL FRAME
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Size = UDim2.new(1, 0, 1, -48)
+scrollFrame.Position = UDim2.new(0, 0, 0, 48)
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.ScrollBarThickness = 8
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+scrollFrame.Parent = mainFrame
+
+local scrollContent = Instance.new("Frame")
+scrollContent.Size = UDim2.new(1, 0, 0, 0)
+scrollContent.BackgroundTransparency = 1
+scrollContent.Parent = scrollFrame
+
+local contentLayout = Instance.new("UIListLayout")
+contentLayout.Padding = UDim.new(0, 16)
+contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+contentLayout.Parent = scrollContent
+
+contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, contentLayout.AbsoluteContentSize.Y + 16)
+	scrollContent.Size = UDim2.new(1, 0, 0, contentLayout.AbsoluteContentSize.Y)
+end)
+
+-- ========== UI REFERENCES ==========
+local nameInput = nil
+local cooldownInput = nil
+local animInput = nil
+local damageInput = nil
+local knockbackInput = nil
+local statusText = nil
+local refreshMoveListFunc = nil
+local updateStatusFunc = nil
+local refreshEventListFunc = nil
+
+-- ========== HITBOX VISUALIZER VARIABLES ==========
+local visualizerActive = false
+local currentPreviewParts = {}
+
+-- ========== CUTSCENE SHAKE CONNECTIONS ==========
+local shakeConnections = {}
+
+-- ========== CURRENT MOVE DATA ==========
+local currentMove = {
+	Name = "New Move",
+	Cooldown = "2",
+	AnimId = "",
+	Damage = "15",
+	Knockback = "500",
+	Timeline = {},
+	Cutscene = {
+		Enabled = false,
+		SlowMotion = false,
+		SlowMotionFactor = 0.3,
+		CameraShake = false,
+		ShakeIntensity = 2,
+		Zoom = false,
+		ZoomAmount = 0.5,
+		Duration = 0.5,
+		CameraRotate = false,
+		RotationAngle = 180,
+		RotationSpeed = 180,
+		RotationDirection = "clockwise"
+	}
+}
+
+-- ========== TEMPLATE LIBRARY ==========
+
+-- Built-in templates
+local builtInTemplates = {
+	{
+		Name = "Dragon Punch",
+		Description = "A powerful uppercut that launches enemies skyward.",
+		Icon = "🐉",
+		Data = {
+			Name = "Dragon Punch",
+			Cooldown = "3",
+			AnimId = "rbxassetid://123456789",
+			Damage = "25",
+			Knockback = "800",
+			Timeline = {
+				{time = 0.2, type = "Hitbox", data = {damage = "25", knockback = "800"}},
+				{time = 0.3, type = "Sound", data = {soundId = "rbxassetid://123456789"}},
+				{time = 0.35, type = "Effect", data = {effectType = "Fire Explosion"}}
+			},
+			Cutscene = {
+				Enabled = true,
+				SlowMotion = true,
+				SlowMotionFactor = 0.3,
+				CameraShake = true,
+				ShakeIntensity = 3,
+				Zoom = true,
+				ZoomAmount = 0.4,
+				Duration = 0.5,
+				CameraRotate = true,
+				RotationAngle = 180,
+				RotationSpeed = 180,
+				RotationDirection = "clockwise"
+			}
+		}
+	},
+	{
+		Name = "Kamehameha",
+		Description = "Charge up and release a devastating energy beam.",
+		Icon = "🌊",
+		Data = {
+			Name = "Kamehameha",
+			Cooldown = "5",
+			AnimId = "rbxassetid://123456789",
+			Damage = "50",
+			Knockback = "1000",
+			Timeline = {
+				{time = 0.5, type = "Hitbox", data = {damage = "50", knockback = "1000"}},
+				{time = 0.6, type = "Sound", data = {soundId = "rbxassetid://123456789"}},
+				{time = 0.7, type = "Effect", data = {effectType = "Energy Beam"}}
+			},
+			Cutscene = {
+				Enabled = true,
+				SlowMotion = true,
+				SlowMotionFactor = 0.2,
+				CameraShake = true,
+				ShakeIntensity = 5,
+				Zoom = true,
+				ZoomAmount = 0.6,
+				Duration = 0.8,
+				CameraRotate = true,
+				RotationAngle = 120,
+				RotationSpeed = 120,
+				RotationDirection = "counter"
+			}
+		}
+	},
+	{
+		Name = "Spin Kick",
+		Description = "A rapid spinning kick that hits multiple times.",
+		Icon = "🌀",
+		Data = {
+			Name = "Spin Kick",
+			Cooldown = "2",
+			AnimId = "rbxassetid://123456789",
+			Damage = "15",
+			Knockback = "400",
+			Timeline = {
+				{time = 0.1, type = "Hitbox", data = {damage = "15", knockback = "400"}},
+				{time = 0.3, type = "Hitbox", data = {damage = "15", knockback = "400"}},
+				{time = 0.5, type = "Hitbox", data = {damage = "15", knockback = "400"}},
+				{time = 0.6, type = "Sound", data = {soundId = "rbxassetid://123456789"}}
+			},
+			Cutscene = {
+				Enabled = false,
+				SlowMotion = false,
+				SlowMotionFactor = 0.3,
+				CameraShake = false,
+				ShakeIntensity = 2,
+				Zoom = false,
+				ZoomAmount = 0.3,
+				Duration = 0.4,
+				CameraRotate = false,
+				RotationAngle = 180,
+				RotationSpeed = 180,
+				RotationDirection = "clockwise"
+			}
+		}
+	},
+	{
+		Name = "Ground Slam",
+		Description = "Slam the ground, damaging and knocking back nearby enemies.",
+		Icon = "💥",
+		Data = {
+			Name = "Ground Slam",
+			Cooldown = "4",
+			AnimId = "rbxassetid://123456789",
+			Damage = "30",
+			Knockback = "600",
+			Timeline = {
+				{time = 0.4, type = "Hitbox", data = {damage = "30", knockback = "600"}},
+				{time = 0.45, type = "Sound", data = {soundId = "rbxassetid://123456789"}},
+				{time = 0.5, type = "Effect", data = {effectType = "Ground Crack"}}
+			},
+			Cutscene = {
+				Enabled = true,
+				SlowMotion = true,
+				SlowMotionFactor = 0.25,
+				CameraShake = true,
+				ShakeIntensity = 4,
+				Zoom = true,
+				ZoomAmount = 0.5,
+				Duration = 0.6,
+				CameraRotate = false,
+				RotationAngle = 180,
+				RotationSpeed = 180,
+				RotationDirection = "clockwise"
+			}
+		}
+	}
+}
+
+-- Custom templates saved by user
+local customTemplates = {}
+
+-- Load custom templates from plugin storage
+local function loadCustomTemplates()
+	local templateData = plugin:GetSetting("MotionForge_CustomTemplates")
+	if templateData and templateData ~= "" then
+		local success, decoded = pcall(function()
+			return game:GetService("HttpService"):JSONDecode(templateData)
+		end)
+		if success and decoded then
+			for _, template in ipairs(decoded) do
+				table.insert(customTemplates, template)
+			end
+		end
+	end
+end
+
+-- Save custom templates to plugin storage
+local function saveCustomTemplates()
+	local success = pcall(function()
+		plugin:SetSetting("MotionForge_CustomTemplates", game:GetService("HttpService"):JSONEncode(customTemplates))
+	end)
+	return success
+end
+
+-- Add a custom template
+local function addCustomTemplate(name, description, icon)
+	local template = {
+		Name = name,
+		Description = description or "Custom move template",
+		Icon = icon or "⭐",
+		IsCustom = true,
+		Data = {
+			Name = currentMove.Name,
+			Cooldown = currentMove.Cooldown,
+			AnimId = currentMove.AnimId,
+			Damage = currentMove.Damage,
+			Knockback = currentMove.Knockback,
+			Timeline = currentMove.Timeline,
+			Cutscene = currentMove.Cutscene
+		}
+	}
+	table.insert(customTemplates, template)
+	saveCustomTemplates()
+	return true
+end
+
+-- Remove a custom template
+local function removeCustomTemplate(index)
+	table.remove(customTemplates, index)
+	saveCustomTemplates()
+end
+
+-- Load a template into current move
+local function loadTemplate(template)
+	currentMove.Name = template.Data.Name
+	currentMove.Cooldown = template.Data.Cooldown
+	currentMove.AnimId = template.Data.AnimId
+	currentMove.Damage = template.Data.Damage
+	currentMove.Knockback = template.Data.Knockback
+	currentMove.Timeline = template.Data.Timeline
+	currentMove.Cutscene = template.Data.Cutscene
+
+	if nameInput then nameInput.Text = currentMove.Name end
+	if cooldownInput then cooldownInput.Text = currentMove.Cooldown end
+	if animInput then animInput.Text = currentMove.AnimId end
+	if damageInput then damageInput.Text = currentMove.Damage end
+	if knockbackInput then knockbackInput.Text = currentMove.Knockback end
+
+	mainGui.Title = "MotionForge - " .. currentMove.Name
+	if refreshEventListFunc then refreshEventListFunc() end
+	if updateStatusFunc then updateStatusFunc() end
+	if visualizerActive and type(updateHitboxVisualizer) == "function" then
+		updateHitboxVisualizer()
+	end
+end
+
+loadCustomTemplates()
+
+-- ========== FUNCTION: CREATE CARD ==========
+local function createCard(title, layoutOrder)
+	local card = Instance.new("Frame")
+	card.BackgroundColor3 = Color3.fromRGB(28, 28, 32)
+	card.BorderSizePixel = 0
+	card.LayoutOrder = layoutOrder
+	card.Size = UDim2.new(1, -32, 0, 0)
+	card.AutomaticSize = Enum.AutomaticSize.Y
+	card.Parent = scrollContent
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 10)
+	corner.Parent = card
+
+	local padding = Instance.new("UIPadding")
+	padding.PaddingLeft = UDim.new(0, 16)
+	padding.PaddingRight = UDim.new(0, 16)
+	padding.PaddingTop = UDim.new(0, 12)
+	padding.PaddingBottom = UDim.new(0, 12)
+	padding.Parent = card
+
+	local header = Instance.new("TextLabel")
+	header.Text = title
+	header.TextColor3 = Color3.fromRGB(220, 220, 230)
+	header.TextSize = 14
+	header.Font = Enum.Font.GothamSemibold
+	header.TextXAlignment = Enum.TextXAlignment.Left
+	header.BackgroundTransparency = 1
+	header.Size = UDim2.new(1, 0, 0, 28)
+	header.Parent = card
+
+	return card
+end
+
+-- ========== FUNCTION: CREATE ROW ==========
+local function createRow(parent, labelText, defaultValue, onChanged, yPos)
+	local row = Instance.new("Frame")
+	row.BackgroundTransparency = 1
+	row.Size = UDim2.new(1, 0, 0, 36)
+	row.Position = UDim2.new(0, 0, 0, yPos)
+	row.Parent = parent
+
+	local label = Instance.new("TextLabel")
+	label.Text = labelText
+	label.TextColor3 = Color3.fromRGB(160, 160, 170)
+	label.TextSize = 12
+	label.Font = Enum.Font.Gotham
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.new(0, 100, 1, 0)
+	label.Parent = row
+
+	local input = Instance.new("TextBox")
+	input.Text = defaultValue or ""
+	input.TextColor3 = Color3.fromRGB(255, 255, 255)
+	input.TextSize = 12
+	input.Font = Enum.Font.Gotham
+	input.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+	input.BorderSizePixel = 0
+	input.Size = UDim2.new(1, -110, 1, 0)
+	input.Position = UDim2.new(0, 110, 0, 0)
+	input.Parent = row
+
+	local inputCorner = Instance.new("UICorner")
+	inputCorner.CornerRadius = UDim.new(0, 6)
+	inputCorner.Parent = input
+
+	if onChanged then
+		input.Changed:Connect(function(prop)
+			if prop == "Text" then
+				onChanged(input.Text)
+			end
+		end)
+	end
+
+	return row, input
+end
+
+-- ========== TIMELINE FUNCTIONS ==========
+local function sortTimeline()
+	table.sort(currentMove.Timeline, function(a, b)
+		return a.time < b.time
+	end)
+end
+
+local function addEvent(eventType, time, data)
+	table.insert(currentMove.Timeline, {
+		type = eventType,
+		time = time,
+		data = data or {}
+	})
+	sortTimeline()
+end
+
+local function removeEvent(index)
+	table.remove(currentMove.Timeline, index)
+end
+
+local function updateEvent(index, newTime, newData)
+	if currentMove.Timeline[index] then
+		currentMove.Timeline[index].time = newTime
+		currentMove.Timeline[index].data = newData
+		sortTimeline()
+		if visualizerActive and type(updateHitboxVisualizer) == "function" then
+			updateHitboxVisualizer()
+		end
+	end
+end
+
+local function getEventIcon(eventType)
+	if eventType == "Hitbox" then
+		return "🔴"
+	elseif eventType == "Sound" then
+		return "🔊"
+	elseif eventType == "Effect" then
+		return "✨"
+	end
+	return "📌"
+end
+
+local function formatEventText(event)
+	local icon = getEventIcon(event.type)
+	local timeStr = string.format("%.2f", event.time)
+
+	if event.type == "Hitbox" then
+		local dmg = event.data.damage or "?"
+		local knock = event.data.knockback or "?"
+		return string.format("%s %ss | Hitbox | Dmg: %s, KB: %s", icon, timeStr, dmg, knock)
+	elseif event.type == "Sound" then
+		local soundId = event.data.soundId or "none"
+		local shortId = string.sub(soundId, -8)
+		return string.format("%s %ss | Sound | ID: ...%s", icon, timeStr, shortId)
+	elseif event.type == "Effect" then
+		local effectType = event.data.effectType or "basic"
+		return string.format("%s %ss | Effect | %s", icon, timeStr, effectType)
+	end
+	return string.format("%s %ss | %s", icon, timeStr, event.type)
+end
+
+-- ========== HITBOX VISUALIZER FUNCTIONS ==========
+local function clearPreview()
+	for _, part in ipairs(currentPreviewParts) do
+		if part and part.Parent then
+			part:Destroy()
+		end
+	end
+	currentPreviewParts = {}
+end
+
+local function createHitboxPreview(size, position, color, transparency)
+	clearPreview()
+
+	local previewPart = Instance.new("Part")
+	previewPart.Size = Vector3.new(size, size, size)
+	previewPart.Position = position
+	previewPart.Anchored = true
+	previewPart.CanCollide = false
+	previewPart.Transparency = transparency or 0.5
+	previewPart.Color = color
+	previewPart.Material = Enum.Material.Neon
+
+	local selectionBox = Instance.new("SelectionBox")
+	selectionBox.Adornee = previewPart
+	selectionBox.Color3 = color
+	selectionBox.LineThickness = 0.05
+	selectionBox.Transparency = 0.3
+	selectionBox.Parent = previewPart
+
+	previewPart.Parent = workspace.CurrentCamera or workspace
+	table.insert(currentPreviewParts, previewPart)
+
+	return previewPart
+end
+
+local function updateHitboxVisualizer()
+	if not visualizerActive then
+		clearPreview()
+		return
+	end
+
+	local hitboxEvent = nil
+	for _, event in ipairs(currentMove.Timeline) do
+		if event.type == "Hitbox" then
+			hitboxEvent = event
+			break
+		end
+	end
+
+	if hitboxEvent then
+		local damage = tonumber(hitboxEvent.data.damage) or 15
+		local clampedDamage = math.max(1, math.min(100, damage))
+		local red = clampedDamage / 100
+		local green = 1 - (clampedDamage / 100)
+		local color = Color3.fromRGB(255 * red, 255 * green, 0)
+
+		local knockback = tonumber(hitboxEvent.data.knockback) or 500
+		local size = 3 + (knockback / 500)
+
+		local camera = workspace.CurrentCamera
+		if camera then
+			local position = camera.CFrame.Position + camera.CFrame.LookVector * 10
+			createHitboxPreview(size, position, color, 0.5)
+		else
+			createHitboxPreview(size, Vector3.new(0, 5, 0), color, 0.5)
+		end
+	else
+		clearPreview()
+	end
+end
+
+local function toggleVisualizer()
+	visualizerActive = not visualizerActive
+	if visualizerActive then
+		task.delay(0.1, function()
+			if type(updateHitboxVisualizer) == "function" then
+				updateHitboxVisualizer()
+			end
+		end)
+		if statusText then
+			statusText.Text = "Hitbox Visualizer: ON"
+			task.wait(1.5)
+			if updateStatusFunc then updateStatusFunc() end
+		end
+	else
+		clearPreview()
+		if statusText then
+			statusText.Text = "Hitbox Visualizer: OFF"
+			task.wait(1.5)
+			if updateStatusFunc then updateStatusFunc() end
+		end
+	end
+end
+
+-- ========== CUTSCENE FUNCTIONS ==========
+local function applySlowMotion(enable)
+	if statusText and enable then
+		statusText.Text = "Slow motion (implement in your game)"
+		task.wait(0.8)
+	end
+end
+
+local function applyCameraShake(intensity, duration)
+	local camera = workspace.CurrentCamera
+	if not camera then return end
+
+	local originalCFrame = camera.CFrame
+	local startTime = tick()
+
+	local connection
+	connection = game:GetService("RunService").RenderStepped:Connect(function()
+		local elapsed = tick() - startTime
+		if elapsed >= duration then
+			camera.CFrame = originalCFrame
+			connection:Disconnect()
+			return
+		end
+
+		local remaining = 1 - (elapsed / duration)
+		local currentIntensity = intensity * remaining
+		local offset = Vector3.new(
+			math.random(-currentIntensity, currentIntensity) / 10,
+			math.random(-currentIntensity, currentIntensity) / 10,
+			math.random(-currentIntensity, currentIntensity) / 10
+		)
+		camera.CFrame = originalCFrame * CFrame.new(offset)
+	end)
+
+	table.insert(shakeConnections, connection)
+
+	task.delay(duration + 0.1, function()
+		for i, conn in ipairs(shakeConnections) do
+			if conn == connection then
+				table.remove(shakeConnections, i)
+				break
+			end
+		end
+	end)
+end
+
+local function applyZoom(zoomAmount, duration)
+	local camera = workspace.CurrentCamera
+	if not camera then return end
+
+	local originalFieldOfView = camera.FieldOfView
+	local targetFOV = originalFieldOfView * (1 - zoomAmount)
+
+	local tweenService = game:GetService("TweenService")
+	local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	local tween = tweenService:Create(camera, tweenInfo, {FieldOfView = targetFOV})
+	tween:Play()
+
+	task.delay(duration, function()
+		local returnTween = tweenService:Create(camera, tweenInfo, {FieldOfView = originalFieldOfView})
+		returnTween:Play()
+	end)
+end
+
+-- Dummy character for rotation preview
+local dummyCharacter = nil
+
+local function createDummyForPreview()
+	if dummyCharacter and dummyCharacter.Parent then
+		return dummyCharacter
+	end
+
+	local dummy = Instance.new("Model")
+	dummy.Name = "MotionForge_Dummy"
+
+	local rootPart = Instance.new("Part")
+	rootPart.Name = "HumanoidRootPart"
+	rootPart.Size = Vector3.new(2, 1, 1)
+	local camera = workspace.CurrentCamera
+	if camera then
+		rootPart.Position = camera.CFrame.Position + camera.CFrame.LookVector * 15
+	else
+		rootPart.Position = Vector3.new(0, 5, 0)
+	end
+	rootPart.Anchored = true
+	rootPart.Parent = dummy
+
+	local humanoid = Instance.new("Humanoid")
+	humanoid.Parent = dummy
+
+	dummy.Parent = workspace
+	dummyCharacter = dummy
+	return dummy
+end
+
+local function destroyDummy()
+	if dummyCharacter then
+		dummyCharacter:Destroy()
+		dummyCharacter = nil
+	end
+end
+
+-- Apply camera rotation around a target (with angle + speed)
+local function applyCameraRotation(target, angle, speed, direction, duration)
+	local camera = workspace.CurrentCamera
+	if not camera or not target then
+		if statusText then
+			statusText.Text = "No target found for rotation preview"
+			task.wait(1.5)
+			if updateStatusFunc then updateStatusFunc() end
+		end
+		return
+	end
+
+	local rootPart = target:FindFirstChild("HumanoidRootPart") or target.PrimaryPart
+	if not rootPart then
+		if statusText then
+			statusText.Text = "Target has no HumanoidRootPart"
+			task.wait(1.5)
+			if updateStatusFunc then updateStatusFunc() end
+		end
+		return
+	end
+
+	local originalCFrame = camera.CFrame
+	local startTime = tick()
+	local directionMultiplier = (direction == "clockwise") and 1 or -1
+
+	local connection
+	connection = game:GetService("RunService").RenderStepped:Connect(function()
+		local elapsed = tick() - startTime
+		if elapsed >= duration then
+			camera.CFrame = originalCFrame
+			connection:Disconnect()
+			return
+		end
+
+		-- Calculate how much of the angle we've completed
+		local progress = elapsed / duration
+		local currentAngle = angle * progress * directionMultiplier
+
+		local offset = originalCFrame.Position - rootPart.Position
+		local rotatedOffset = CFrame.new(Vector3.new(0, 0, 0)) * CFrame.Angles(0, math.rad(currentAngle), 0)
+		local newPosition = rootPart.Position + (rotatedOffset * offset)
+		camera.CFrame = CFrame.lookAt(newPosition, rootPart.Position)
+	end)
+
+	table.insert(shakeConnections, connection)
+
+	task.delay(duration + 0.1, function()
+		for i, conn in ipairs(shakeConnections) do
+			if conn == connection then
+				table.remove(shakeConnections, i)
+				break
+			end
+		end
+	end)
+end
+
+local function cleanupCutsceneEffects()
+	for _, conn in ipairs(shakeConnections) do
+		if conn and conn.Connected then
+			conn:Disconnect()
+		end
+	end
+	shakeConnections = {}
+
+	local camera = workspace.CurrentCamera
+	if camera and camera.FieldOfView ~= 70 then
+		camera.FieldOfView = 70
+	end
+
+	destroyDummy()
+end
+
+-- ========== LUA CODE EXPORTER ==========
+local function generateHitboxModule()
+	return [[
+-- MotionForge Hitbox System
+-- Generated by MotionForge v1.3.1
+-- Created by Gorrilla567_h - Free & Open Source
+
+local HitboxSystem = {}
+
+function HitboxSystem.new(character, data)
+    local self = setmetatable({}, {__index = HitboxSystem})
+    
+    self.Character = character
+    self.Humanoid = character:FindFirstChild("Humanoid")
+    self.RootPart = character:FindFirstChild("HumanoidRootPart")
+    self.Damage = data.Damage or 10
+    self.Knockback = data.Knockback or 500
+    self.Range = data.Range or 8
+    self.Duration = data.Duration or 0.2
+    self.HitTargets = {}
+    
+    return self
+end
+
+function HitboxSystem:Fire()
+    if not self.RootPart then return end
+    
+    local params = OverlapParams.new()
+    params.MaxParts = 50
+    params.FilterType = Enum.RaycastFilterType.Blacklist
+    params.FilterDescendantsInstances = {self.Character}
+    
+    local hits = workspace:GetPartsInPart(self.RootPart, params)
+    
+    for _, hit in ipairs(hits) do
+        local humanoid = hit.Parent:FindFirstChild("Humanoid")
+        if humanoid and humanoid ~= self.Humanoid then
+            if not self.HitTargets[humanoid] then
+                self.HitTargets[humanoid] = true
+                humanoid:TakeDamage(self.Damage)
+                
+                local direction = (hit.Position - self.RootPart.Position).Unit
+                local knockbackVelocity = direction * self.Knockback
+                local bodyVelocity = Instance.new("BodyVelocity")
+                bodyVelocity.Velocity = knockbackVelocity
+                bodyVelocity.MaxForce = Vector3.new(1, 1, 1) * 10000
+                local rootPart = hit.Parent:FindFirstChild("HumanoidRootPart") or hit.Parent.PrimaryPart
+                if rootPart then
+                    bodyVelocity.Parent = rootPart
+                    task.delay(0.2, function()
+                        bodyVelocity:Destroy()
+                    end)
+                end
+            end
+        end
+    end
+    
+    task.delay(self.Duration, function()
+        self:Destroy()
+    end)
+end
+
+function HitboxSystem:Destroy()
+end
+
+return HitboxSystem
+]]
+end
+
+local function generateMoveCode()
+	local timelineStr = "{\n"
+	for i, event in ipairs(currentMove.Timeline) do
+		timelineStr = timelineStr .. string.format("        {time = %.2f, type = \"%s\", data = {", event.time, event.type)
+
+		if event.type == "Hitbox" then
+			timelineStr = timelineStr .. string.format("damage = %s, knockback = %s", event.data.damage or currentMove.Damage, event.data.knockback or currentMove.Knockback)
+		elseif event.type == "Sound" then
+			timelineStr = timelineStr .. string.format("soundId = \"%s\"", event.data.soundId or "rbxassetid://123456789")
+		elseif event.type == "Effect" then
+			timelineStr = timelineStr .. string.format("effectType = \"%s\"", event.data.effectType or "BasicExplosion")
+		end
+
+		timelineStr = timelineStr .. "}}"
+		if i < #currentMove.Timeline then
+			timelineStr = timelineStr .. ","
+		end
+		timelineStr = timelineStr .. "\n"
+	end
+	timelineStr = timelineStr .. "    }"
+
+	local cutsceneJson = game:GetService("HttpService"):JSONEncode(currentMove.Cutscene)
+
+	return string.format([[
+-- MotionForge Exported Move: %s
+-- Generated by MotionForge v1.3.1
+-- Created by Gorrilla567_h - Free & Open Source
+-- Support development: https://paypal.me/yourusername
+
+local HitboxSystem = require(script.Parent.HitboxSystem)
+
+local Move = {}
+
+Move.Name = "%s"
+Move.Cooldown = %s
+Move.AnimationId = "%s"
+Move.Damage = %s
+Move.Knockback = %s
+Move.Timeline = %s
+Move.Cutscene = %s
+
+function Move.Execute(character, mousePosition)
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid then return false end
+    
+    if Move.LastUsed and tick() - Move.LastUsed < Move.Cooldown then
+        return false
+    end
+    Move.LastUsed = tick()
+    
+    local animator = humanoid:FindFirstChild("Animator")
+    if animator and Move.AnimationId ~= "" then
+        local animation = Instance.new("Animation")
+        animation.AnimationId = Move.AnimationId
+        local animTrack = animator:LoadAnimation(animation)
+        animTrack:Play()
+    end
+    
+    local cutsceneApplied = false
+    
+    for _, event in ipairs(Move.Timeline) do
+        task.delay(event.time, function()
+            if event.type == "Hitbox" then
+                if Move.Cutscene.Enabled and not cutsceneApplied then
+                    cutsceneApplied = true
+                    
+                    if Move.Cutscene.SlowMotion then
+                        print("Slow motion would activate here")
+                    end
+                    
+                    if Move.Cutscene.CameraShake then
+                        task.delay(0.05, function()
+                            local camera = workspace.CurrentCamera
+                            if camera then
+                                local intensity = Move.Cutscene.ShakeIntensity
+                                local duration = Move.Cutscene.Duration
+                                local originalCFrame = camera.CFrame
+                                local startTime = tick()
+                                local connection
+                                connection = game:GetService("RunService").RenderStepped:Connect(function()
+                                    local elapsed = tick() - startTime
+                                    if elapsed >= duration then
+                                        camera.CFrame = originalCFrame
+                                        connection:Disconnect()
+                                        return
+                                    end
+                                    local remaining = 1 - (elapsed / duration)
+                                    local currentIntensity = intensity * remaining
+                                    local offset = Vector3.new(
+                                        math.random(-currentIntensity, currentIntensity) / 10,
+                                        math.random(-currentIntensity, currentIntensity) / 10,
+                                        math.random(-currentIntensity, currentIntensity) / 10
+                                    )
+                                    camera.CFrame = originalCFrame * CFrame.new(offset)
+                                end)
+                            end
+                        end)
+                    end
+                    
+                    if Move.Cutscene.Zoom then
+                        task.delay(0.05, function()
+                            local camera = workspace.CurrentCamera
+                            if camera then
+                                local originalFOV = camera.FieldOfView
+                                local targetFOV = originalFOV * (1 - Move.Cutscene.ZoomAmount)
+                                local tweenService = game:GetService("TweenService")
+                                local tweenInfo = TweenInfo.new(Move.Cutscene.Duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                                local tween = tweenService:Create(camera, tweenInfo, {FieldOfView = targetFOV})
+                                tween:Play()
+                                task.delay(Move.Cutscene.Duration, function()
+                                    local returnTween = tweenService:Create(camera, tweenInfo, {FieldOfView = originalFOV})
+                                    returnTween:Play()
+                                end)
+                            end
+                        end)
+                    end
+                    
+                    if Move.Cutscene.CameraRotate then
+                        task.delay(0.05, function()
+                            local camera = workspace.CurrentCamera
+                            if camera and character then
+                                local rootPart = character:FindFirstChild("HumanoidRootPart")
+                                if rootPart then
+                                    local originalCFrame = camera.CFrame
+                                    local angle = Move.Cutscene.RotationAngle
+                                    local speed = Move.Cutscene.RotationSpeed
+                                    local duration = Move.Cutscene.Duration
+                                    local dirMultiplier = (Move.Cutscene.RotationDirection == "clockwise") and 1 or -1
+                                    local startTime = tick()
+                                    local connection
+                                    connection = game:GetService("RunService").RenderStepped:Connect(function()
+                                        local elapsed = tick() - startTime
+                                        if elapsed >= duration then
+                                            camera.CFrame = originalCFrame
+                                            connection:Disconnect()
+                                            return
+                                        end
+                                        local progress = elapsed / duration
+                                        local currentAngle = angle * progress * dirMultiplier
+                                        local offset = originalCFrame.Position - rootPart.Position
+                                        local rotatedOffset = CFrame.new(Vector3.new(0, 0, 0)) * CFrame.Angles(0, math.rad(currentAngle), 0)
+                                        local newPosition = rootPart.Position + (rotatedOffset * offset)
+                                        camera.CFrame = CFrame.lookAt(newPosition, rootPart.Position)
+                                    end)
+                                end
+                            end
+                        end)
+                    end
+                end
+                
+                local hitbox = HitboxSystem.new(character, {
+                    Damage = event.data.damage or Move.Damage,
+                    Knockback = event.data.knockback or Move.Knockback,
+                    Range = 8
+                })
+                hitbox:Fire()
+            elseif event.type == "Sound" then
+                local sound = Instance.new("Sound")
+                sound.SoundId = event.data.soundId
+                sound.Parent = character
+                sound:Play()
+                task.delay(sound.TimeLength or 2, function()
+                    sound:Destroy()
+                end)
+            elseif event.type == "Effect" then
+                local part = Instance.new("Part")
+                part.Size = Vector3.new(2, 2, 2)
+                part.Anchored = true
+                part.CanCollide = false
+                part.BrickColor = BrickColor.new("Bright red")
+                part.Material = Enum.Material.Neon
+                part.Position = character.HumanoidRootPart.Position
+                part.Parent = workspace
+                task.delay(0.5, function()
+                    part:Destroy()
+                end)
+            end
+        end)
+    end
+    
+    return true
+end
+
+return Move
+]], currentMove.Name, currentMove.Name, currentMove.Cooldown, currentMove.AnimId, currentMove.Damage, currentMove.Knockback, timelineStr, cutsceneJson)
+end
+
+local function exportToClipboard()
+	if #currentMove.Timeline == 0 then
+		if statusText then
+			statusText.Text = "Add at least one event before exporting!"
+			task.wait(1.5)
+			if updateStatusFunc then updateStatusFunc() end
+		end
+		return
+	end
+
+	local code = generateMoveCode()
+
+	local clipboardSuccess = pcall(function()
+		setclipboard(code)
+	end)
+
+	if not clipboardSuccess then
+		local dialog = Instance.new("Frame")
+		dialog.Size = UDim2.new(0, 500, 0, 400)
+		dialog.Position = UDim2.new(0.5, -250, 0.5, -200)
+		dialog.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+		dialog.BorderSizePixel = 0
+		dialog.Parent = mainGui
+
+		local dialogCorner = Instance.new("UICorner")
+		dialogCorner.CornerRadius = UDim.new(0, 10)
+		dialogCorner.Parent = dialog
+
+		local title = Instance.new("TextLabel")
+		title.Text = "Exported Code - Select and Copy (Ctrl+C)"
+		title.TextColor3 = Color3.fromRGB(255, 255, 255)
+		title.TextSize = 14
+		title.Font = Enum.Font.GothamSemibold
+		title.BackgroundTransparency = 1
+		title.Size = UDim2.new(1, 0, 0, 40)
+		title.Parent = dialog
+
+		local textBox = Instance.new("TextBox")
+		textBox.Text = code
+		textBox.TextColor3 = Color3.fromRGB(200, 200, 200)
+		textBox.TextSize = 11
+		textBox.Font = Enum.Font.Code
+		textBox.TextXAlignment = Enum.TextXAlignment.Left
+		textBox.TextYAlignment = Enum.TextYAlignment.Top
+		textBox.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+		textBox.BorderSizePixel = 0
+		textBox.Size = UDim2.new(1, -20, 1, -80)
+		textBox.Position = UDim2.new(0, 10, 0, 50)
+		textBox.ClearTextOnFocus = false
+		textBox.MultiLine = true
+		textBox.Parent = dialog
+
+		local textCorner = Instance.new("UICorner")
+		textCorner.CornerRadius = UDim.new(0, 8)
+		textCorner.Parent = textBox
+
+		local closeBtn = Instance.new("TextButton")
+		closeBtn.Text = "Close"
+		closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		closeBtn.TextSize = 12
+		closeBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+		closeBtn.BorderSizePixel = 0
+		closeBtn.Size = UDim2.new(0, 100, 0, 36)
+		closeBtn.Position = UDim2.new(1, -120, 1, -50)
+		closeBtn.Parent = dialog
+
+		local closeCorner = Instance.new("UICorner")
+		closeCorner.CornerRadius = UDim.new(0, 6)
+		closeCorner.Parent = closeBtn
+
+		closeBtn.MouseButton1Click:Connect(function()
+			dialog:Destroy()
+		end)
+
+		textBox:CaptureFocus()
+
+		if statusText then
+			statusText.Text = "Code shown in dialog - Select and copy"
+			task.wait(2)
+			if updateStatusFunc then updateStatusFunc() end
+		end
+	else
+		if statusText then
+			statusText.Text = "Copied to clipboard!"
+			task.wait(1.5)
+			if updateStatusFunc then updateStatusFunc() end
+		end
+	end
+end
+
+local function exportToGame()
+	if #currentMove.Timeline == 0 then
+		if statusText then
+			statusText.Text = "Add at least one event before exporting!"
+			task.wait(1.5)
+			if updateStatusFunc then updateStatusFunc() end
+		end
+		return
+	end
+
+	local folder = game.ReplicatedStorage:FindFirstChild("MotionForge_Moves")
+	if not folder then
+		folder = Instance.new("Folder")
+		folder.Name = "MotionForge_Moves"
+		folder.Parent = game.ReplicatedStorage
+	end
+
+	local hitboxModule = game.ReplicatedStorage:FindFirstChild("HitboxSystem")
+	if not hitboxModule then
+		hitboxModule = Instance.new("ModuleScript")
+		hitboxModule.Name = "HitboxSystem"
+		hitboxModule.Source = generateHitboxModule()
+		hitboxModule.Parent = game.ReplicatedStorage
+	end
+
+	local moveName = string.gsub(currentMove.Name, "[^%w]", "_")
+	local moveModule = Instance.new("ModuleScript")
+	moveModule.Name = moveName
+	moveModule.Source = generateMoveCode()
+	moveModule.Parent = folder
+
+	if statusText then
+		statusText.Text = "Exported to ReplicatedStorage!"
+		task.wait(1.5)
+		if updateStatusFunc then updateStatusFunc() end
+	end
+end
+
+-- ========== SAVE/LOAD FUNCTIONS ==========
+local SAVE_PREFIX = "MotionForge_Move_"
+
+local function getSavedMoveNames()
+	local indexData = plugin:GetSetting("MotionForge_SavedMoves")
+	if indexData and indexData ~= "" then
+		local success, decoded = pcall(function()
+			return game:GetService("HttpService"):JSONDecode(indexData)
+		end)
+		if success and decoded then
+			return decoded
+		end
+	end
+	return {}
+end
+
+local function saveMoveNameList(names)
+	pcall(function()
+		plugin:SetSetting("MotionForge_SavedMoves", game:GetService("HttpService"):JSONEncode(names))
+	end)
+end
+
+local function saveCurrentMove()
+	local moveName = currentMove.Name
+	if not moveName or moveName == "" then
+		moveName = "Unnamed Move"
+	end
+
+	local cleanName = string.gsub(moveName, "[^%w%-_]", "_")
+	local settingKey = SAVE_PREFIX .. cleanName
+
+	local moveData = {
+		Name = currentMove.Name,
+		Cooldown = currentMove.Cooldown,
+		AnimId = currentMove.AnimId,
+		Damage = currentMove.Damage,
+		Knockback = currentMove.Knockback,
+		Timeline = currentMove.Timeline,
+		Cutscene = currentMove.Cutscene,
+		Version = "1.3.1"
+	}
+
+	local success = pcall(function()
+		plugin:SetSetting(settingKey, game:GetService("HttpService"):JSONEncode(moveData))
+	end)
+
+	if success then
+		local savedNames = getSavedMoveNames()
+		local found = false
+		for _, name in ipairs(savedNames) do
+			if name == moveName then
+				found = true
+				break
+			end
+		end
+		if not found then
+			table.insert(savedNames, moveName)
+			saveMoveNameList(savedNames)
+		end
+		if statusText then
+			statusText.Text = "Saved: " .. moveName
+			task.wait(1.5)
+			if updateStatusFunc then updateStatusFunc() end
+		end
+		if refreshMoveListFunc then refreshMoveListFunc() end
+		return true
+	else
+		if statusText then statusText.Text = "Save failed!" end
+		return false
+	end
+end
+
+local function loadMoveByName(moveName)
+	local cleanName = string.gsub(moveName, "[^%w%-_]", "_")
+	local settingKey = SAVE_PREFIX .. cleanName
+	local moveData = plugin:GetSetting(settingKey)
+
+	if not moveData or moveData == "" then
+		if statusText then statusText.Text = "Move not found" end
+		return false
+	end
+
+	local success, data = pcall(function()
+		return game:GetService("HttpService"):JSONDecode(moveData)
+	end)
+
+	if success and data then
+		currentMove.Name = data.Name or "New Move"
+		currentMove.Cooldown = data.Cooldown or "2"
+		currentMove.AnimId = data.AnimId or ""
+		currentMove.Damage = data.Damage or "15"
+		currentMove.Knockback = data.Knockback or "500"
+		currentMove.Timeline = data.Timeline or {}
+		currentMove.Cutscene = data.Cutscene or currentMove.Cutscene
+
+		if nameInput then nameInput.Text = currentMove.Name end
+		if cooldownInput then cooldownInput.Text = currentMove.Cooldown end
+		if animInput then animInput.Text = currentMove.AnimId end
+		if damageInput then damageInput.Text = currentMove.Damage end
+		if knockbackInput then knockbackInput.Text = currentMove.Knockback end
+
+		mainGui.Title = "MotionForge - " .. currentMove.Name
+		if refreshEventListFunc then refreshEventListFunc() end
+		if updateStatusFunc then updateStatusFunc() end
+		if visualizerActive and type(updateHitboxVisualizer) == "function" then
+			updateHitboxVisualizer()
+		end
+		if statusText then
+			statusText.Text = "Loaded: " .. moveName
+			task.wait(1.5)
+			if updateStatusFunc then updateStatusFunc() end
+		end
+		return true
+	end
+	return false
+end
+
+local function deleteMoveByName(moveName)
+	local cleanName = string.gsub(moveName, "[^%w%-_]", "_")
+	local settingKey = SAVE_PREFIX .. cleanName
+	plugin:SetSetting(settingKey, nil)
+
+	local savedNames = getSavedMoveNames()
+	local newNames = {}
+	for _, name in ipairs(savedNames) do
+		if name ~= moveName then
+			table.insert(newNames, name)
+		end
+	end
+	saveMoveNameList(newNames)
+
+	if statusText then
+		statusText.Text = "Deleted: " .. moveName
+		task.wait(1.5)
+		if updateStatusFunc then updateStatusFunc() end
+	end
+	if refreshMoveListFunc then refreshMoveListFunc() end
+	return true
+end
+
+-- ========== BUILD CARDS ==========
+
+-- CARD 1: BASIC INFO
+local infoCard = createCard("📋 Basic Info", 1)
+
+local nameRow, nameInputTemp = createRow(infoCard, "Move Name", currentMove.Name, function(val)
+	currentMove.Name = val
+	mainGui.Title = "MotionForge - " .. val
+	if updateStatusFunc then updateStatusFunc() end
+end, 40)
+nameInput = nameInputTemp
+
+local cooldownRow, cooldownInputTemp = createRow(infoCard, "Cooldown (sec)", currentMove.Cooldown, function(val)
+	currentMove.Cooldown = val
+	if updateStatusFunc then updateStatusFunc() end
+end, 80)
+cooldownInput = cooldownInputTemp
+
+-- CARD 2: ANIMATION
+local animCard = createCard("🎬 Animation", 2)
+
+local animRow, animInputTemp = createRow(animCard, "Animation ID", currentMove.AnimId, function(val)
+	currentMove.AnimId = val
+end, 40)
+animInput = animInputTemp
+
+-- CARD 3: COMBAT STATS
+local combatCard = createCard("⚔️ Combat Stats", 3)
+
+local damageRow, damageInputTemp = createRow(combatCard, "Damage", currentMove.Damage, function(val)
+	currentMove.Damage = val
+	if updateStatusFunc then updateStatusFunc() end
+	if visualizerActive and type(updateHitboxVisualizer) == "function" then
+		updateHitboxVisualizer()
+	end
+end, 40)
+damageInput = damageInputTemp
+
+local knockbackRow, knockbackInputTemp = createRow(combatCard, "Knockback", currentMove.Knockback, function(val)
+	currentMove.Knockback = val
+	if visualizerActive and type(updateHitboxVisualizer) == "function" then
+		updateHitboxVisualizer()
+	end
+end, 80)
+knockbackInput = knockbackInputTemp
+
+-- ========== CARD 4: TIMELINE EDITOR ==========
+local timelineCard = createCard("⏱️ Timeline", 4)
+
+local eventListFrame = Instance.new("ScrollingFrame")
+eventListFrame.Size = UDim2.new(1, 0, 0, 150)
+eventListFrame.Position = UDim2.new(0, 0, 0, 40)
+eventListFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+eventListFrame.BorderSizePixel = 0
+eventListFrame.ScrollBarThickness = 6
+eventListFrame.Parent = timelineCard
+
+local eventListCorner = Instance.new("UICorner")
+eventListCorner.CornerRadius = UDim.new(0, 8)
+eventListCorner.Parent = eventListFrame
+
+local eventListLayout = Instance.new("UIListLayout")
+eventListLayout.Padding = UDim.new(0, 4)
+eventListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+eventListLayout.Parent = eventListFrame
+
+function refreshEventListFunc()
+	for _, child in ipairs(eventListFrame:GetChildren()) do
+		if child:IsA("TextButton") or child:IsA("Frame") or child:IsA("TextLabel") then
+			child:Destroy()
+		end
+	end
+
+	if #currentMove.Timeline == 0 then
+		local emptyLabel = Instance.new("TextLabel")
+		emptyLabel.Text = "No events. Click '+ Add Event' to create one."
+		emptyLabel.TextColor3 = Color3.fromRGB(100, 100, 110)
+		emptyLabel.TextSize = 11
+		emptyLabel.BackgroundTransparency = 1
+		emptyLabel.Size = UDim2.new(1, 0, 0, 40)
+		emptyLabel.Parent = eventListFrame
+	else
+		for i, event in ipairs(currentMove.Timeline) do
+			local row = Instance.new("Frame")
+			row.Name = "EventRow_" .. i
+			row.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+			row.BorderSizePixel = 0
+			row.Size = UDim2.new(1, -10, 0, 36)
+			row.Parent = eventListFrame
+
+			local rowCorner = Instance.new("UICorner")
+			rowCorner.CornerRadius = UDim.new(0, 6)
+			rowCorner.Parent = row
+
+			local eventLabel = Instance.new("TextLabel")
+			eventLabel.Text = formatEventText(event)
+			eventLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+			eventLabel.TextSize = 11
+			eventLabel.Font = Enum.Font.Gotham
+			eventLabel.TextXAlignment = Enum.TextXAlignment.Left
+			eventLabel.BackgroundTransparency = 1
+			eventLabel.Size = UDim2.new(1, -80, 1, 0)
+			eventLabel.Position = UDim2.new(0, 8, 0, 0)
+			eventLabel.Parent = row
+
+			local editButton = Instance.new("TextButton")
+			editButton.Text = "✏️"
+			editButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+			editButton.TextSize = 14
+			editButton.BackgroundColor3 = Color3.fromRGB(70, 70, 80)
+			editButton.BorderSizePixel = 0
+			editButton.Size = UDim2.new(0, 30, 0, 28)
+			editButton.Position = UDim2.new(1, -65, 0, 4)
+			editButton.Parent = row
+
+			local editCorner = Instance.new("UICorner")
+			editCorner.CornerRadius = UDim.new(0, 6)
+			editCorner.Parent = editButton
+
+			local delButton = Instance.new("TextButton")
+			delButton.Text = "🗑️"
+			delButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+			delButton.TextSize = 12
+			delButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+			delButton.BorderSizePixel = 0
+			delButton.Size = UDim2.new(0, 30, 0, 28)
+			delButton.Position = UDim2.new(1, -32, 0, 4)
+			delButton.Parent = row
+
+			local delCorner = Instance.new("UICorner")
+			delCorner.CornerRadius = UDim.new(0, 6)
+			delCorner.Parent = delButton
+
+			editButton.MouseButton1Click:Connect(function()
+				local dialog = Instance.new("Frame")
+				dialog.Size = UDim2.new(0, 300, 0, 200)
+				dialog.Position = UDim2.new(0.5, -150, 0.5, -100)
+				dialog.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+				dialog.BorderSizePixel = 0
+				dialog.Parent = mainGui
+
+				local dialogCorner = Instance.new("UICorner")
+				dialogCorner.CornerRadius = UDim.new(0, 10)
+				dialogCorner.Parent = dialog
+
+				local title = Instance.new("TextLabel")
+				title.Text = "Edit " .. event.type .. " Event"
+				title.TextColor3 = Color3.fromRGB(255, 255, 255)
+				title.TextSize = 14
+				title.Font = Enum.Font.GothamSemibold
+				title.BackgroundTransparency = 1
+				title.Size = UDim2.new(1, 0, 0, 40)
+				title.Parent = dialog
+
+				local timeLabel = Instance.new("TextLabel")
+				timeLabel.Text = "Time (seconds):"
+				timeLabel.TextColor3 = Color3.fromRGB(160, 160, 170)
+				timeLabel.TextSize = 11
+				timeLabel.BackgroundTransparency = 1
+				timeLabel.Size = UDim2.new(0, 100, 0, 30)
+				timeLabel.Position = UDim2.new(0, 15, 0, 50)
+				timeLabel.Parent = dialog
+
+				local timeBox = Instance.new("TextBox")
+				timeBox.Text = string.format("%.2f", event.time)
+				timeBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+				timeBox.TextSize = 12
+				timeBox.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+				timeBox.BorderSizePixel = 0
+				timeBox.Size = UDim2.new(0, 100, 0, 30)
+				timeBox.Position = UDim2.new(0, 120, 0, 50)
+				timeBox.Parent = dialog
+
+				local timeCorner = Instance.new("UICorner")
+				timeCorner.CornerRadius = UDim.new(0, 6)
+				timeCorner.Parent = timeBox
+
+				local paramLabel = nil
+				local paramBox = nil
+
+				if event.type == "Hitbox" then
+					paramLabel = Instance.new("TextLabel")
+					paramLabel.Text = "Damage:"
+					paramLabel.TextColor3 = Color3.fromRGB(160, 160, 170)
+					paramLabel.TextSize = 11
+					paramLabel.BackgroundTransparency = 1
+					paramLabel.Size = UDim2.new(0, 100, 0, 30)
+					paramLabel.Position = UDim2.new(0, 15, 0, 90)
+					paramLabel.Parent = dialog
+
+					paramBox = Instance.new("TextBox")
+					paramBox.Text = event.data.damage or "15"
+					paramBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+					paramBox.TextSize = 12
+					paramBox.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+					paramBox.BorderSizePixel = 0
+					paramBox.Size = UDim2.new(0, 100, 0, 30)
+					paramBox.Position = UDim2.new(0, 120, 0, 90)
+					paramBox.Parent = dialog
+
+					local paramCorner = Instance.new("UICorner")
+					paramCorner.CornerRadius = UDim.new(0, 6)
+					paramCorner.Parent = paramBox
+
+				elseif event.type == "Sound" then
+					paramLabel = Instance.new("TextLabel")
+					paramLabel.Text = "Sound ID:"
+					paramLabel.TextColor3 = Color3.fromRGB(160, 160, 170)
+					paramLabel.TextSize = 11
+					paramLabel.BackgroundTransparency = 1
+					paramLabel.Size = UDim2.new(0, 100, 0, 30)
+					paramLabel.Position = UDim2.new(0, 15, 0, 90)
+					paramLabel.Parent = dialog
+
+					paramBox = Instance.new("TextBox")
+					paramBox.Text = event.data.soundId or "rbxassetid://123456789"
+					paramBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+					paramBox.TextSize = 11
+					paramBox.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+					paramBox.BorderSizePixel = 0
+					paramBox.Size = UDim2.new(0, 150, 0, 30)
+					paramBox.Position = UDim2.new(0, 120, 0, 90)
+					paramBox.Parent = dialog
+
+					local paramCorner = Instance.new("UICorner")
+					paramCorner.CornerRadius = UDim.new(0, 6)
+					paramCorner.Parent = paramBox
+
+				elseif event.type == "Effect" then
+					paramLabel = Instance.new("TextLabel")
+					paramLabel.Text = "Effect Type:"
+					paramLabel.TextColor3 = Color3.fromRGB(160, 160, 170)
+					paramLabel.TextSize = 11
+					paramLabel.BackgroundTransparency = 1
+					paramLabel.Size = UDim2.new(0, 100, 0, 30)
+					paramLabel.Position = UDim2.new(0, 15, 0, 90)
+					paramLabel.Parent = dialog
+
+					paramBox = Instance.new("TextBox")
+					paramBox.Text = event.data.effectType or "Basic Explosion"
+					paramBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+					paramBox.TextSize = 12
+					paramBox.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+					paramBox.BorderSizePixel = 0
+					paramBox.Size = UDim2.new(0, 150, 0, 30)
+					paramBox.Position = UDim2.new(0, 120, 0, 90)
+					paramBox.Parent = dialog
+
+					local paramCorner = Instance.new("UICorner")
+					paramCorner.CornerRadius = UDim.new(0, 6)
+					paramCorner.Parent = paramBox
+				end
+
+				local saveEditBtn = Instance.new("TextButton")
+				saveEditBtn.Text = "Save Changes"
+				saveEditBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+				saveEditBtn.TextSize = 12
+				saveEditBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+				saveEditBtn.BorderSizePixel = 0
+				saveEditBtn.Size = UDim2.new(0, 120, 0, 36)
+				saveEditBtn.Position = UDim2.new(0, 15, 0, 140)
+				saveEditBtn.Parent = dialog
+
+				local saveCorner = Instance.new("UICorner")
+				saveCorner.CornerRadius = UDim.new(0, 6)
+				saveCorner.Parent = saveEditBtn
+
+				local cancelBtn = Instance.new("TextButton")
+				cancelBtn.Text = "Cancel"
+				cancelBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+				cancelBtn.TextSize = 12
+				cancelBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 90)
+				cancelBtn.BorderSizePixel = 0
+				cancelBtn.Size = UDim2.new(0, 120, 0, 36)
+				cancelBtn.Position = UDim2.new(0, 150, 0, 140)
+				cancelBtn.Parent = dialog
+
+				local cancelCorner = Instance.new("UICorner")
+				cancelCorner.CornerRadius = UDim.new(0, 6)
+				cancelCorner.Parent = cancelBtn
+
+				local function closeDialog()
+					dialog:Destroy()
+				end
+
+				saveEditBtn.MouseButton1Click:Connect(function()
+					local newTime = tonumber(timeBox.Text)
+					if not newTime then newTime = event.time end
+
+					local newData = {}
+					if event.type == "Hitbox" then
+						newData = {
+							damage = paramBox.Text,
+							knockback = event.data.knockback or "500"
+						}
+					elseif event.type == "Sound" then
+						newData = {soundId = paramBox.Text}
+					elseif event.type == "Effect" then
+						newData = {effectType = paramBox.Text}
+					end
+
+					updateEvent(i, newTime, newData)
+					refreshEventListFunc()
+					if updateStatusFunc then updateStatusFunc() end
+					if statusText then
+						statusText.Text = "Event updated"
+						task.wait(1)
+						if updateStatusFunc then updateStatusFunc() end
+					end
+					closeDialog()
+				end)
+
+				cancelBtn.MouseButton1Click:Connect(closeDialog)
+			end)
+
+			delButton.MouseButton1Click:Connect(function()
+				removeEvent(i)
+				refreshEventListFunc()
+				if updateStatusFunc then updateStatusFunc() end
+				if visualizerActive and type(updateHitboxVisualizer) == "function" then
+					updateHitboxVisualizer()
+				end
+				if statusText then
+					statusText.Text = "Event deleted"
+					task.wait(1)
+					if updateStatusFunc then updateStatusFunc() end
+				end
+			end)
+		end
+	end
+
+	task.defer(function()
+		eventListFrame.CanvasSize = UDim2.new(0, 0, 0, eventListLayout.AbsoluteContentSize.Y + 10)
+	end)
+end
+
+local addEventButton = Instance.new("TextButton")
+addEventButton.Text = "+ Add Event"
+addEventButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+addEventButton.TextSize = 13
+addEventButton.Font = Enum.Font.GothamSemibold
+addEventButton.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+addEventButton.BorderSizePixel = 0
+addEventButton.Size = UDim2.new(1, 0, 0, 36)
+addEventButton.Position = UDim2.new(0, 0, 0, 200)
+addEventButton.Parent = timelineCard
+
+local addEventCorner = Instance.new("UICorner")
+addEventCorner.CornerRadius = UDim.new(0, 8)
+addEventCorner.Parent = addEventButton
+
+local function showEventTypeMenu()
+	local menuFrame = Instance.new("Frame")
+	menuFrame.Size = UDim2.new(0, 200, 0, 150)
+	menuFrame.Position = UDim2.new(0.5, -100, 0.5, -75)
+	menuFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+	menuFrame.BorderSizePixel = 0
+	menuFrame.Parent = mainGui
+
+	local menuCorner = Instance.new("UICorner")
+	menuCorner.CornerRadius = UDim.new(0, 10)
+	menuCorner.Parent = menuFrame
+
+	local title = Instance.new("TextLabel")
+	title.Text = "Select Event Type"
+	title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	title.TextSize = 14
+	title.Font = Enum.Font.GothamSemibold
+	title.BackgroundTransparency = 1
+	title.Size = UDim2.new(1, 0, 0, 40)
+	title.Parent = menuFrame
+
+	local hitboxBtn = Instance.new("TextButton")
+	hitboxBtn.Text = "🔴 Hitbox (Damage)"
+	hitboxBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	hitboxBtn.TextSize = 12
+	hitboxBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+	hitboxBtn.BorderSizePixel = 0
+	hitboxBtn.Size = UDim2.new(1, -20, 0, 36)
+	hitboxBtn.Position = UDim2.new(0, 10, 0, 45)
+	hitboxBtn.Parent = menuFrame
+
+	local btnCorner = Instance.new("UICorner")
+	btnCorner.CornerRadius = UDim.new(0, 6)
+	btnCorner.Parent = hitboxBtn
+
+	local soundBtn = Instance.new("TextButton")
+	soundBtn.Text = "🔊 Sound Effect"
+	soundBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	soundBtn.TextSize = 12
+	soundBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+	soundBtn.BorderSizePixel = 0
+	soundBtn.Size = UDim2.new(1, -20, 0, 36)
+	soundBtn.Position = UDim2.new(0, 10, 0, 90)
+	soundBtn.Parent = menuFrame
+
+	local soundCorner = Instance.new("UICorner")
+	soundCorner.CornerRadius = UDim.new(0, 6)
+	soundCorner.Parent = soundBtn
+
+	local effectBtn = Instance.new("TextButton")
+	effectBtn.Text = "✨ Visual Effect"
+	effectBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	effectBtn.TextSize = 12
+	effectBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+	effectBtn.BorderSizePixel = 0
+	effectBtn.Size = UDim2.new(1, -20, 0, 36)
+	effectBtn.Position = UDim2.new(0, 10, 0, 135)
+	effectBtn.Parent = menuFrame
+
+	local effectCorner = Instance.new("UICorner")
+	effectCorner.CornerRadius = UDim.new(0, 6)
+	effectCorner.Parent = effectBtn
+
+	local function closeMenu()
+		menuFrame:Destroy()
+	end
+
+	hitboxBtn.MouseButton1Click:Connect(function()
+		closeMenu()
+		local newTime = #currentMove.Timeline * 0.3 + 0.3
+		addEvent("Hitbox", newTime, {damage = currentMove.Damage, knockback = currentMove.Knockback})
+		refreshEventListFunc()
+		if updateStatusFunc then updateStatusFunc() end
+		if visualizerActive and type(updateHitboxVisualizer) == "function" then
+			updateHitboxVisualizer()
+		end
+		if statusText then
+			statusText.Text = "Added hitbox at " .. string.format("%.2f", newTime) .. "s"
+			task.wait(1.5)
+			if updateStatusFunc then updateStatusFunc() end
+		end
+	end)
+
+	soundBtn.MouseButton1Click:Connect(function()
+		closeMenu()
+		local newTime = #currentMove.Timeline * 0.3 + 0.3
+		addEvent("Sound", newTime, {soundId = "rbxassetid://123456789"})
+		refreshEventListFunc()
+		if updateStatusFunc then updateStatusFunc() end
+		if statusText then
+			statusText.Text = "Added sound at " .. string.format("%.2f", newTime) .. "s"
+			task.wait(1.5)
+			if updateStatusFunc then updateStatusFunc() end
+		end
+	end)
+
+	effectBtn.MouseButton1Click:Connect(function()
+		closeMenu()
+		local newTime = #currentMove.Timeline * 0.3 + 0.3
+		addEvent("Effect", newTime, {effectType = "Basic Explosion"})
+		refreshEventListFunc()
+		if updateStatusFunc then updateStatusFunc() end
+		if statusText then
+			statusText.Text = "Added effect at " .. string.format("%.2f", newTime) .. "s"
+			task.wait(1.5)
+			if updateStatusFunc then updateStatusFunc() end
+		end
+	end)
+end
+
+addEventButton.MouseButton1Click:Connect(showEventTypeMenu)
+
+local visualizerButton = Instance.new("TextButton")
+visualizerButton.Text = "👁️ Show Hitbox Preview"
+visualizerButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+visualizerButton.TextSize = 12
+visualizerButton.Font = Enum.Font.Gotham
+visualizerButton.BackgroundColor3 = Color3.fromRGB(100, 100, 120)
+visualizerButton.BorderSizePixel = 0
+visualizerButton.Size = UDim2.new(1, 0, 0, 32)
+visualizerButton.Position = UDim2.new(0, 0, 0, 245)
+visualizerButton.Parent = timelineCard
+
+local visualizerCorner = Instance.new("UICorner")
+visualizerCorner.CornerRadius = UDim.new(0, 8)
+visualizerCorner.Parent = visualizerButton
+
+visualizerButton.MouseButton1Click:Connect(function()
+	toggleVisualizer()
+end)
+
+local testButton = Instance.new("TextButton")
+testButton.Text = "▶️ Animation Preview (Coming Soon)"
+testButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+testButton.TextSize = 12
+testButton.Font = Enum.Font.Gotham
+testButton.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+testButton.BorderSizePixel = 0
+testButton.Size = UDim2.new(1, 0, 0, 32)
+testButton.Position = UDim2.new(0, 0, 0, 285)
+testButton.Parent = timelineCard
+
+local testCorner = Instance.new("UICorner")
+testCorner.CornerRadius = UDim.new(0, 8)
+testCorner.Parent = testButton
+
+testButton.MouseButton1Click:Connect(function()
+	if statusText then
+		statusText.Text = "Animation preview coming in a future update!"
+		task.wait(1.5)
+		if updateStatusFunc then updateStatusFunc() end
+	end
+end)
+
+refreshEventListFunc()
+
+-- ========== CARD 5: EXPORT ==========
+local exportCard = createCard("📦 Export", 5)
+
+local clipboardButton = Instance.new("TextButton")
+clipboardButton.Text = "📋 Copy to Clipboard"
+clipboardButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+clipboardButton.TextSize = 13
+clipboardButton.Font = Enum.Font.GothamSemibold
+clipboardButton.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+clipboardButton.BorderSizePixel = 0
+clipboardButton.Size = UDim2.new(1, 0, 0, 40)
+clipboardButton.Position = UDim2.new(0, 0, 0, 40)
+clipboardButton.Parent = exportCard
+
+local clipboardCorner = Instance.new("UICorner")
+clipboardCorner.CornerRadius = UDim.new(0, 8)
+clipboardCorner.Parent = clipboardButton
+
+clipboardButton.MouseButton1Click:Connect(function()
+	exportToClipboard()
+end)
+
+local gameButton = Instance.new("TextButton")
+gameButton.Text = "💾 Export to ReplicatedStorage"
+gameButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+gameButton.TextSize = 13
+gameButton.Font = Enum.Font.GothamSemibold
+gameButton.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+gameButton.BorderSizePixel = 0
+gameButton.Size = UDim2.new(1, 0, 0, 40)
+gameButton.Position = UDim2.new(0, 0, 0, 95)
+gameButton.Parent = exportCard
+
+local gameCorner = Instance.new("UICorner")
+gameCorner.CornerRadius = UDim.new(0, 8)
+gameCorner.Parent = gameButton
+
+gameButton.MouseButton1Click:Connect(function()
+	exportToGame()
+end)
+
+local infoLabel = Instance.new("TextLabel")
+infoLabel.Text = "Exported moves require a HitboxSystem module.\nIt will be created automatically in ReplicatedStorage."
+infoLabel.TextColor3 = Color3.fromRGB(120, 120, 130)
+infoLabel.TextSize = 10
+infoLabel.Font = Enum.Font.Gotham
+infoLabel.TextXAlignment = Enum.TextXAlignment.Center
+infoLabel.BackgroundTransparency = 1
+infoLabel.Size = UDim2.new(1, 0, 0, 40)
+infoLabel.Position = UDim2.new(0, 0, 0, 145)
+infoLabel.Parent = exportCard
+
+-- ========== CARD 6: CUTSCENE (with Angle + Speed) ==========
+local cutsceneCard = createCard("🎬 Cutscene", 6)
+
+local enableToggle = Instance.new("TextButton")
+enableToggle.Text = currentMove.Cutscene.Enabled and "✅ Cutscene Effects: ON" or "⬜ Cutscene Effects: OFF"
+enableToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+enableToggle.TextSize = 13
+enableToggle.Font = Enum.Font.GothamSemibold
+enableToggle.BackgroundColor3 = currentMove.Cutscene.Enabled and Color3.fromRGB(0, 120, 215) or Color3.fromRGB(80, 80, 90)
+enableToggle.BorderSizePixel = 0
+enableToggle.Size = UDim2.new(1, 0, 0, 36)
+enableToggle.Position = UDim2.new(0, 0, 0, 40)
+enableToggle.Parent = cutsceneCard
+
+local enableCorner = Instance.new("UICorner")
+enableCorner.CornerRadius = UDim.new(0, 8)
+enableCorner.Parent = enableToggle
+
+enableToggle.MouseButton1Click:Connect(function()
+	currentMove.Cutscene.Enabled = not currentMove.Cutscene.Enabled
+	enableToggle.Text = currentMove.Cutscene.Enabled and "✅ Cutscene Effects: ON" or "⬜ Cutscene Effects: OFF"
+	enableToggle.BackgroundColor3 = currentMove.Cutscene.Enabled and Color3.fromRGB(0, 120, 215) or Color3.fromRGB(80, 80, 90)
+	if statusText then
+		statusText.Text = currentMove.Cutscene.Enabled and "Cutscene enabled" or "Cutscene disabled"
+		task.wait(1)
+		if updateStatusFunc then updateStatusFunc() end
+	end
+end)
+
+local slowMotionRow = Instance.new("Frame")
+slowMotionRow.BackgroundTransparency = 1
+slowMotionRow.Size = UDim2.new(1, 0, 0, 36)
+slowMotionRow.Position = UDim2.new(0, 0, 0, 85)
+slowMotionRow.Parent = cutsceneCard
+
+local slowMotionLabel = Instance.new("TextLabel")
+slowMotionLabel.Text = "Slow Motion:"
+slowMotionLabel.TextColor3 = Color3.fromRGB(160, 160, 170)
+slowMotionLabel.TextSize = 12
+slowMotionLabel.Font = Enum.Font.Gotham
+slowMotionLabel.TextXAlignment = Enum.TextXAlignment.Left
+slowMotionLabel.BackgroundTransparency = 1
+slowMotionLabel.Size = UDim2.new(0, 100, 1, 0)
+slowMotionLabel.Parent = slowMotionRow
+
+local slowMotionToggle = Instance.new("TextButton")
+slowMotionToggle.Text = currentMove.Cutscene.SlowMotion and "✅ ON" or "⬜ OFF"
+slowMotionToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+slowMotionToggle.TextSize = 12
+slowMotionToggle.Font = Enum.Font.Gotham
+slowMotionToggle.BackgroundColor3 = currentMove.Cutscene.SlowMotion and Color3.fromRGB(0, 120, 215) or Color3.fromRGB(60, 60, 70)
+slowMotionToggle.BorderSizePixel = 0
+slowMotionToggle.Size = UDim2.new(0, 80, 1, 0)
+slowMotionToggle.Position = UDim2.new(1, -90, 0, 0)
+slowMotionToggle.Parent = slowMotionRow
+
+local slowCorner = Instance.new("UICorner")
+slowCorner.CornerRadius = UDim.new(0, 6)
+slowCorner.Parent = slowMotionToggle
+
+slowMotionToggle.MouseButton1Click:Connect(function()
+	currentMove.Cutscene.SlowMotion = not currentMove.Cutscene.SlowMotion
+	slowMotionToggle.Text = currentMove.Cutscene.SlowMotion and "✅ ON" or "⬜ OFF"
+	slowMotionToggle.BackgroundColor3 = currentMove.Cutscene.SlowMotion and Color3.fromRGB(0, 120, 215) or Color3.fromRGB(60, 60, 70)
+end)
+
+local factorRow = Instance.new("Frame")
+factorRow.BackgroundTransparency = 1
+factorRow.Size = UDim2.new(1, 0, 0, 36)
+factorRow.Position = UDim2.new(0, 0, 0, 125)
+factorRow.Parent = cutsceneCard
+
+local factorLabel = Instance.new("TextLabel")
+factorLabel.Text = "Speed Factor:"
+factorLabel.TextColor3 = Color3.fromRGB(160, 160, 170)
+factorLabel.TextSize = 11
+factorLabel.Font = Enum.Font.Gotham
+factorLabel.TextXAlignment = Enum.TextXAlignment.Left
+factorLabel.BackgroundTransparency = 1
+factorLabel.Size = UDim2.new(0, 90, 1, 0)
+factorLabel.Parent = factorRow
+
+local factorValue = Instance.new("TextBox")
+factorValue.Text = tostring(currentMove.Cutscene.SlowMotionFactor)
+factorValue.TextColor3 = Color3.fromRGB(255, 255, 255)
+factorValue.TextSize = 11
+factorValue.Font = Enum.Font.Gotham
+factorValue.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+factorValue.BorderSizePixel = 0
+factorValue.Size = UDim2.new(0, 60, 1, 0)
+factorValue.Position = UDim2.new(1, -180, 0, 0)
+factorValue.Parent = factorRow
+
+local factorCorner = Instance.new("UICorner")
+factorCorner.CornerRadius = UDim.new(0, 6)
+factorCorner.Parent = factorValue
+
+factorValue.Changed:Connect(function(prop)
+	if prop == "Text" then
+		local val = tonumber(factorValue.Text)
+		if val then
+			currentMove.Cutscene.SlowMotionFactor = math.max(0.05, val)
+			factorValue.Text = string.format("%.2f", currentMove.Cutscene.SlowMotionFactor)
+		end
+	end
+end)
+
+local shakeRow = Instance.new("Frame")
+shakeRow.BackgroundTransparency = 1
+shakeRow.Size = UDim2.new(1, 0, 0, 36)
+shakeRow.Position = UDim2.new(0, 0, 0, 165)
+shakeRow.Parent = cutsceneCard
+
+local shakeLabel = Instance.new("TextLabel")
+shakeLabel.Text = "Camera Shake:"
+shakeLabel.TextColor3 = Color3.fromRGB(160, 160, 170)
+shakeLabel.TextSize = 12
+shakeLabel.Font = Enum.Font.Gotham
+shakeLabel.TextXAlignment = Enum.TextXAlignment.Left
+shakeLabel.BackgroundTransparency = 1
+shakeLabel.Size = UDim2.new(0, 100, 1, 0)
+shakeLabel.Parent = shakeRow
+
+local shakeToggle = Instance.new("TextButton")
+shakeToggle.Text = currentMove.Cutscene.CameraShake and "✅ ON" or "⬜ OFF"
+shakeToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+shakeToggle.TextSize = 12
+shakeToggle.Font = Enum.Font.Gotham
+shakeToggle.BackgroundColor3 = currentMove.Cutscene.CameraShake and Color3.fromRGB(0, 120, 215) or Color3.fromRGB(60, 60, 70)
+shakeToggle.BorderSizePixel = 0
+shakeToggle.Size = UDim2.new(0, 80, 1, 0)
+shakeToggle.Position = UDim2.new(1, -90, 0, 0)
+shakeToggle.Parent = shakeRow
+
+local shakeCorner = Instance.new("UICorner")
+shakeCorner.CornerRadius = UDim.new(0, 6)
+shakeCorner.Parent = shakeToggle
+
+shakeToggle.MouseButton1Click:Connect(function()
+	currentMove.Cutscene.CameraShake = not currentMove.Cutscene.CameraShake
+	shakeToggle.Text = currentMove.Cutscene.CameraShake and "✅ ON" or "⬜ OFF"
+	shakeToggle.BackgroundColor3 = currentMove.Cutscene.CameraShake and Color3.fromRGB(0, 120, 215) or Color3.fromRGB(60, 60, 70)
+end)
+
+local intensityRow = Instance.new("Frame")
+intensityRow.BackgroundTransparency = 1
+intensityRow.Size = UDim2.new(1, 0, 0, 36)
+intensityRow.Position = UDim2.new(0, 0, 0, 205)
+intensityRow.Parent = cutsceneCard
+
+local intensityLabel = Instance.new("TextLabel")
+intensityLabel.Text = "Shake Intensity:"
+intensityLabel.TextColor3 = Color3.fromRGB(160, 160, 170)
+intensityLabel.TextSize = 11
+intensityLabel.Font = Enum.Font.Gotham
+intensityLabel.TextXAlignment = Enum.TextXAlignment.Left
+intensityLabel.BackgroundTransparency = 1
+intensityLabel.Size = UDim2.new(0, 100, 1, 0)
+intensityLabel.Parent = intensityRow
+
+local intensityValue = Instance.new("TextBox")
+intensityValue.Text = tostring(currentMove.Cutscene.ShakeIntensity)
+intensityValue.TextColor3 = Color3.fromRGB(255, 255, 255)
+intensityValue.TextSize = 11
+intensityValue.Font = Enum.Font.Gotham
+intensityValue.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+intensityValue.BorderSizePixel = 0
+intensityValue.Size = UDim2.new(0, 60, 1, 0)
+intensityValue.Position = UDim2.new(1, -180, 0, 0)
+intensityValue.Parent = intensityRow
+
+local intensityCorner = Instance.new("UICorner")
+intensityCorner.CornerRadius = UDim.new(0, 6)
+intensityCorner.Parent = intensityValue
+
+intensityValue.Changed:Connect(function(prop)
+	if prop == "Text" then
+		local val = tonumber(intensityValue.Text)
+		if val then
+			currentMove.Cutscene.ShakeIntensity = math.max(0, val)
+			intensityValue.Text = string.format("%.1f", currentMove.Cutscene.ShakeIntensity)
+		end
+	end
+end)
+
+local zoomRow = Instance.new("Frame")
+zoomRow.BackgroundTransparency = 1
+zoomRow.Size = UDim2.new(1, 0, 0, 36)
+zoomRow.Position = UDim2.new(0, 0, 0, 245)
+zoomRow.Parent = cutsceneCard
+
+local zoomLabel = Instance.new("TextLabel")
+zoomLabel.Text = "Zoom Effect:"
+zoomLabel.TextColor3 = Color3.fromRGB(160, 160, 170)
+zoomLabel.TextSize = 12
+zoomLabel.Font = Enum.Font.Gotham
+zoomLabel.TextXAlignment = Enum.TextXAlignment.Left
+zoomLabel.BackgroundTransparency = 1
+zoomLabel.Size = UDim2.new(0, 100, 1, 0)
+zoomLabel.Parent = zoomRow
+
+local zoomToggle = Instance.new("TextButton")
+zoomToggle.Text = currentMove.Cutscene.Zoom and "✅ ON" or "⬜ OFF"
+zoomToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+zoomToggle.TextSize = 12
+zoomToggle.Font = Enum.Font.Gotham
+zoomToggle.BackgroundColor3 = currentMove.Cutscene.Zoom and Color3.fromRGB(0, 120, 215) or Color3.fromRGB(60, 60, 70)
+zoomToggle.BorderSizePixel = 0
+zoomToggle.Size = UDim2.new(0, 80, 1, 0)
+zoomToggle.Position = UDim2.new(1, -90, 0, 0)
+zoomToggle.Parent = zoomRow
+
+local zoomCorner = Instance.new("UICorner")
+zoomCorner.CornerRadius = UDim.new(0, 6)
+zoomCorner.Parent = zoomToggle
+
+zoomToggle.MouseButton1Click:Connect(function()
+	currentMove.Cutscene.Zoom = not currentMove.Cutscene.Zoom
+	zoomToggle.Text = currentMove.Cutscene.Zoom and "✅ ON" or "⬜ OFF"
+	zoomToggle.BackgroundColor3 = currentMove.Cutscene.Zoom and Color3.fromRGB(0, 120, 215) or Color3.fromRGB(60, 60, 70)
+end)
+
+local zoomAmountRow = Instance.new("Frame")
+zoomAmountRow.BackgroundTransparency = 1
+zoomAmountRow.Size = UDim2.new(1, 0, 0, 36)
+zoomAmountRow.Position = UDim2.new(0, 0, 0, 285)
+zoomAmountRow.Parent = cutsceneCard
+
+local zoomAmountLabel = Instance.new("TextLabel")
+zoomAmountLabel.Text = "Zoom Amount:"
+zoomAmountLabel.TextColor3 = Color3.fromRGB(160, 160, 170)
+zoomAmountLabel.TextSize = 11
+zoomAmountLabel.Font = Enum.Font.Gotham
+zoomAmountLabel.TextXAlignment = Enum.TextXAlignment.Left
+zoomAmountLabel.BackgroundTransparency = 1
+zoomAmountLabel.Size = UDim2.new(0, 100, 1, 0)
+zoomAmountLabel.Parent = zoomAmountRow
+
+local zoomAmountValue = Instance.new("TextBox")
+zoomAmountValue.Text = tostring(currentMove.Cutscene.ZoomAmount)
+zoomAmountValue.TextColor3 = Color3.fromRGB(255, 255, 255)
+zoomAmountValue.TextSize = 11
+zoomAmountValue.Font = Enum.Font.Gotham
+zoomAmountValue.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+zoomAmountValue.BorderSizePixel = 0
+zoomAmountValue.Size = UDim2.new(0, 60, 1, 0)
+zoomAmountValue.Position = UDim2.new(1, -180, 0, 0)
+zoomAmountValue.Parent = zoomAmountRow
+
+local zoomAmountCorner = Instance.new("UICorner")
+zoomAmountCorner.CornerRadius = UDim.new(0, 6)
+zoomAmountCorner.Parent = zoomAmountValue
+
+zoomAmountValue.Changed:Connect(function(prop)
+	if prop == "Text" then
+		local val = tonumber(zoomAmountValue.Text)
+		if val then
+			currentMove.Cutscene.ZoomAmount = math.max(0, val)
+			zoomAmountValue.Text = string.format("%.2f", currentMove.Cutscene.ZoomAmount)
+		end
+	end
+end)
+
+local durationRow = Instance.new("Frame")
+durationRow.BackgroundTransparency = 1
+durationRow.Size = UDim2.new(1, 0, 0, 36)
+durationRow.Position = UDim2.new(0, 0, 0, 325)
+durationRow.Parent = cutsceneCard
+
+local durationLabel = Instance.new("TextLabel")
+durationLabel.Text = "Effect Duration:"
+durationLabel.TextColor3 = Color3.fromRGB(160, 160, 170)
+durationLabel.TextSize = 11
+durationLabel.Font = Enum.Font.Gotham
+durationLabel.TextXAlignment = Enum.TextXAlignment.Left
+durationLabel.BackgroundTransparency = 1
+durationLabel.Size = UDim2.new(0, 100, 1, 0)
+durationLabel.Parent = durationRow
+
+local durationValue = Instance.new("TextBox")
+durationValue.Text = tostring(currentMove.Cutscene.Duration)
+durationValue.TextColor3 = Color3.fromRGB(255, 255, 255)
+durationValue.TextSize = 11
+durationValue.Font = Enum.Font.Gotham
+durationValue.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+durationValue.BorderSizePixel = 0
+durationValue.Size = UDim2.new(0, 60, 1, 0)
+durationValue.Position = UDim2.new(1, -180, 0, 0)
+durationValue.Parent = durationRow
+
+local durationCorner = Instance.new("UICorner")
+durationCorner.CornerRadius = UDim.new(0, 6)
+durationCorner.Parent = durationValue
+
+durationValue.Changed:Connect(function(prop)
+	if prop == "Text" then
+		local val = tonumber(durationValue.Text)
+		if val then
+			currentMove.Cutscene.Duration = math.max(0.1, val)
+			durationValue.Text = string.format("%.2f", currentMove.Cutscene.Duration)
+		end
+	end
+end)
+
+-- Camera Rotation Section
+local rotationRow = Instance.new("Frame")
+rotationRow.BackgroundTransparency = 1
+rotationRow.Size = UDim2.new(1, 0, 0, 36)
+rotationRow.Position = UDim2.new(0, 0, 0, 365)
+rotationRow.Parent = cutsceneCard
+
+local rotationLabel = Instance.new("TextLabel")
+rotationLabel.Text = "Camera Rotate:"
+rotationLabel.TextColor3 = Color3.fromRGB(160, 160, 170)
+rotationLabel.TextSize = 12
+rotationLabel.Font = Enum.Font.Gotham
+rotationLabel.TextXAlignment = Enum.TextXAlignment.Left
+rotationLabel.BackgroundTransparency = 1
+rotationLabel.Size = UDim2.new(0, 100, 1, 0)
+rotationLabel.Parent = rotationRow
+
+local rotationToggle = Instance.new("TextButton")
+rotationToggle.Text = currentMove.Cutscene.CameraRotate and "✅ ON" or "⬜ OFF"
+rotationToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+rotationToggle.TextSize = 12
+rotationToggle.Font = Enum.Font.Gotham
+rotationToggle.BackgroundColor3 = currentMove.Cutscene.CameraRotate and Color3.fromRGB(0, 120, 215) or Color3.fromRGB(60, 60, 70)
+rotationToggle.BorderSizePixel = 0
+rotationToggle.Size = UDim2.new(0, 80, 1, 0)
+rotationToggle.Position = UDim2.new(1, -90, 0, 0)
+rotationToggle.Parent = rotationRow
+
+local rotationCorner = Instance.new("UICorner")
+rotationCorner.CornerRadius = UDim.new(0, 6)
+rotationCorner.Parent = rotationToggle
+
+rotationToggle.MouseButton1Click:Connect(function()
+	currentMove.Cutscene.CameraRotate = not currentMove.Cutscene.CameraRotate
+	rotationToggle.Text = currentMove.Cutscene.CameraRotate and "✅ ON" or "⬜ OFF"
+	rotationToggle.BackgroundColor3 = currentMove.Cutscene.CameraRotate and Color3.fromRGB(0, 120, 215) or Color3.fromRGB(60, 60, 70)
+end)
+
+-- Rotation Angle Control
+local rotationAngleRow = Instance.new("Frame")
+rotationAngleRow.BackgroundTransparency = 1
+rotationAngleRow.Size = UDim2.new(1, 0, 0, 36)
+rotationAngleRow.Position = UDim2.new(0, 0, 0, 405)
+rotationAngleRow.Parent = cutsceneCard
+
+local rotationAngleLabel = Instance.new("TextLabel")
+rotationAngleLabel.Text = "Rotation Angle:"
+rotationAngleLabel.TextColor3 = Color3.fromRGB(160, 160, 170)
+rotationAngleLabel.TextSize = 11
+rotationAngleLabel.Font = Enum.Font.Gotham
+rotationAngleLabel.TextXAlignment = Enum.TextXAlignment.Left
+rotationAngleLabel.BackgroundTransparency = 1
+rotationAngleLabel.Size = UDim2.new(0, 100, 1, 0)
+rotationAngleLabel.Parent = rotationAngleRow
+
+local rotationAngleValue = Instance.new("TextBox")
+rotationAngleValue.Text = tostring(currentMove.Cutscene.RotationAngle)
+rotationAngleValue.TextColor3 = Color3.fromRGB(255, 255, 255)
+rotationAngleValue.TextSize = 11
+rotationAngleValue.Font = Enum.Font.Gotham
+rotationAngleValue.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+rotationAngleValue.BorderSizePixel = 0
+rotationAngleValue.Size = UDim2.new(0, 80, 1, 0)
+rotationAngleValue.Position = UDim2.new(1, -180, 0, 0)
+rotationAngleValue.PlaceholderText = "Degrees"
+rotationAngleValue.Parent = rotationAngleRow
+
+local angleCorner = Instance.new("UICorner")
+angleCorner.CornerRadius = UDim.new(0, 6)
+angleCorner.Parent = rotationAngleValue
+
+rotationAngleValue.Changed:Connect(function(prop)
+	if prop == "Text" then
+		local val = tonumber(rotationAngleValue.Text)
+		if val then
+			currentMove.Cutscene.RotationAngle = math.max(0, val)
+			rotationAngleValue.Text = tostring(currentMove.Cutscene.RotationAngle)
+		end
+	end
+end)
+
+-- Rotation Speed Control (Hybrid)
+local rotationSpeedRow = Instance.new("Frame")
+rotationSpeedRow.BackgroundTransparency = 1
+rotationSpeedRow.Size = UDim2.new(1, 0, 0, 70)
+rotationSpeedRow.Position = UDim2.new(0, 0, 0, 445)
+rotationSpeedRow.Parent = cutsceneCard
+
+local rotationSpeedLabel = Instance.new("TextLabel")
+rotationSpeedLabel.Text = "Rotation Speed:"
+rotationSpeedLabel.TextColor3 = Color3.fromRGB(160, 160, 170)
+rotationSpeedLabel.TextSize = 11
+rotationSpeedLabel.Font = Enum.Font.Gotham
+rotationSpeedLabel.TextXAlignment = Enum.TextXAlignment.Left
+rotationSpeedLabel.BackgroundTransparency = 1
+rotationSpeedLabel.Size = UDim2.new(0, 100, 0, 25)
+rotationSpeedLabel.Position = UDim2.new(0, 0, 0, 0)
+rotationSpeedLabel.Parent = rotationSpeedRow
+
+local rotationSpeedValue = Instance.new("TextBox")
+rotationSpeedValue.Text = tostring(currentMove.Cutscene.RotationSpeed)
+rotationSpeedValue.TextColor3 = Color3.fromRGB(255, 255, 255)
+rotationSpeedValue.TextSize = 11
+rotationSpeedValue.Font = Enum.Font.Gotham
+rotationSpeedValue.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+rotationSpeedValue.BorderSizePixel = 0
+rotationSpeedValue.Size = UDim2.new(0, 80, 0, 28)
+rotationSpeedValue.Position = UDim2.new(0, 110, 0, -2)
+rotationSpeedValue.PlaceholderText = "°/s"
+rotationSpeedValue.Parent = rotationSpeedRow
+
+local speedCorner = Instance.new("UICorner")
+speedCorner.CornerRadius = UDim.new(0, 6)
+speedCorner.Parent = rotationSpeedValue
+
+rotationSpeedValue.Changed:Connect(function(prop)
+	if prop == "Text" then
+		local val = tonumber(rotationSpeedValue.Text)
+		if val then
+			currentMove.Cutscene.RotationSpeed = math.max(1, val)
+			rotationSpeedValue.Text = tostring(currentMove.Cutscene.RotationSpeed)
+		end
+	end
+end)
+
+-- Preset buttons for speed
+local speedPresetLabel = Instance.new("TextLabel")
+speedPresetLabel.Text = "Presets:"
+speedPresetLabel.TextColor3 = Color3.fromRGB(120, 120, 130)
+speedPresetLabel.TextSize = 10
+speedPresetLabel.Font = Enum.Font.Gotham
+speedPresetLabel.TextXAlignment = Enum.TextXAlignment.Left
+speedPresetLabel.BackgroundTransparency = 1
+speedPresetLabel.Size = UDim2.new(0, 50, 0, 20)
+speedPresetLabel.Position = UDim2.new(0, 200, 0, 4)
+speedPresetLabel.Parent = rotationSpeedRow
+
+local speedPresets = {60, 120, 180, 240, 360, 480, 720}
+local speedX = 250
+for _, spd in ipairs(speedPresets) do
+	local presetBtn = Instance.new("TextButton")
+	presetBtn.Text = tostring(spd)
+	presetBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+	presetBtn.TextSize = 10
+	presetBtn.Font = Enum.Font.Gotham
+	presetBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+	presetBtn.BorderSizePixel = 0
+	presetBtn.Size = UDim2.new(0, 40, 0, 24)
+	presetBtn.Position = UDim2.new(0, speedX, 0, 2)
+	presetBtn.Parent = rotationSpeedRow
+
+	local presetCorner = Instance.new("UICorner")
+	presetCorner.CornerRadius = UDim.new(0, 6)
+	presetCorner.Parent = presetBtn
+
+	presetBtn.MouseButton1Click:Connect(function()
+		currentMove.Cutscene.RotationSpeed = spd
+		rotationSpeedValue.Text = tostring(spd)
+		updateDurationInfo()
+	end)
+
+	speedX = speedX + 45
+end
+
+-- Duration info display (MUST be defined BEFORE it's called)
+local durationInfo = Instance.new("TextLabel")
+durationInfo.Name = "DurationInfo"
+durationInfo.TextColor3 = Color3.fromRGB(100, 100, 110)
+durationInfo.TextSize = 10
+durationInfo.Font = Enum.Font.Gotham
+durationInfo.BackgroundTransparency = 1
+durationInfo.Size = UDim2.new(0, 150, 0, 20)
+durationInfo.Position = UDim2.new(1, -160, 0, 50)
+durationInfo.Parent = rotationSpeedRow
+
+local function updateDurationInfo()
+	local angle = currentMove.Cutscene.RotationAngle
+	local speed = currentMove.Cutscene.RotationSpeed
+	if speed > 0 then
+		durationInfo.Text = "⏱️ Duration: " .. string.format("%.2f", angle / speed) .. "s"
+	else
+		durationInfo.Text = "⏱️ Duration: ∞ (speed = 0)"
+	end
+end
+updateDurationInfo()
+
+-- Now connect the Changed events AFTER updateDurationInfo is defined
+rotationAngleValue.Changed:Connect(function(prop)
+	if prop == "Text" then
+		local val = tonumber(rotationAngleValue.Text)
+		if val then
+			currentMove.Cutscene.RotationAngle = math.max(0, val)
+			rotationAngleValue.Text = tostring(currentMove.Cutscene.RotationAngle)
+			updateDurationInfo()
+		end
+	end
+end)
+
+rotationSpeedValue.Changed:Connect(function(prop)
+	if prop == "Text" then
+		local val = tonumber(rotationSpeedValue.Text)
+		if val then
+			currentMove.Cutscene.RotationSpeed = math.max(1, val)
+			rotationSpeedValue.Text = tostring(currentMove.Cutscene.RotationSpeed)
+			updateDurationInfo()
+		end
+	end
+end)
+
+-- Rotation Direction
+local rotationDirRow = Instance.new("Frame")
+rotationDirRow.BackgroundTransparency = 1
+rotationDirRow.Size = UDim2.new(1, 0, 0, 36)
+rotationDirRow.Position = UDim2.new(0, 0, 0, 520)
+rotationDirRow.Parent = cutsceneCard
+
+local rotationDirLabel = Instance.new("TextLabel")
+rotationDirLabel.Text = "Direction:"
+rotationDirLabel.TextColor3 = Color3.fromRGB(160, 160, 170)
+rotationDirLabel.TextSize = 11
+rotationDirLabel.Font = Enum.Font.Gotham
+rotationDirLabel.TextXAlignment = Enum.TextXAlignment.Left
+rotationDirLabel.BackgroundTransparency = 1
+rotationDirLabel.Size = UDim2.new(0, 70, 1, 0)
+rotationDirLabel.Parent = rotationDirRow
+
+local directionToggle = Instance.new("TextButton")
+directionToggle.Text = currentMove.Cutscene.RotationDirection == "clockwise" and "🔄 Clockwise" or "🔄 Counter-Clockwise"
+directionToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+directionToggle.TextSize = 11
+directionToggle.Font = Enum.Font.Gotham
+directionToggle.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+directionToggle.BorderSizePixel = 0
+directionToggle.Size = UDim2.new(0, 140, 1, 0)
+directionToggle.Position = UDim2.new(1, -150, 0, 0)
+directionToggle.Parent = rotationDirRow
+
+local directionCorner = Instance.new("UICorner")
+directionCorner.CornerRadius = UDim.new(0, 6)
+directionCorner.Parent = directionToggle
+
+directionToggle.MouseButton1Click:Connect(function()
+	if currentMove.Cutscene.RotationDirection == "clockwise" then
+		currentMove.Cutscene.RotationDirection = "counter"
+		directionToggle.Text = "🔄 Counter-Clockwise"
+	else
+		currentMove.Cutscene.RotationDirection = "clockwise"
+		directionToggle.Text = "🔄 Clockwise"
+	end
+end)
+
+local cutsceneInfo = Instance.new("TextLabel")
+cutsceneInfo.Text = "Note: Cutscene effects apply when the move hits.\nSlow motion preview is disabled in Studio (works in exported code)."
+cutsceneInfo.TextColor3 = Color3.fromRGB(100, 100, 110)
+cutsceneInfo.TextSize = 10
+cutsceneInfo.Font = Enum.Font.Gotham
+cutsceneInfo.TextXAlignment = Enum.TextXAlignment.Center
+cutsceneInfo.BackgroundTransparency = 1
+cutsceneInfo.Size = UDim2.new(1, 0, 0, 40)
+cutsceneInfo.Position = UDim2.new(0, 0, 0, 565)
+cutsceneInfo.Parent = cutsceneCard
+
+local previewCutsceneButton = Instance.new("TextButton")
+previewCutsceneButton.Text = "🎬 Preview Cutscene"
+previewCutsceneButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+previewCutsceneButton.TextSize = 12
+previewCutsceneButton.Font = Enum.Font.Gotham
+previewCutsceneButton.BackgroundColor3 = Color3.fromRGB(100, 100, 120)
+previewCutsceneButton.BorderSizePixel = 0
+previewCutsceneButton.Size = UDim2.new(1, 0, 0, 32)
+previewCutsceneButton.Position = UDim2.new(0, 0, 0, 615)
+previewCutsceneButton.Parent = cutsceneCard
+
+local previewCorner = Instance.new("UICorner")
+previewCorner.CornerRadius = UDim.new(0, 8)
+previewCorner.Parent = previewCutsceneButton
+
+previewCutsceneButton.MouseButton1Click:Connect(function()
+	if not currentMove.Cutscene.Enabled then
+		if statusText then
+			statusText.Text = "Enable cutscene first!"
+			task.wait(1.5)
+			if updateStatusFunc then updateStatusFunc() end
+		end
+		return
+	end
+
+	if statusText then
+		statusText.Text = "Previewing cutscene effects..."
+		task.wait(0.5)
+	end
+
+	-- Get a target for rotation
+	local target = nil
+
+	-- Try to get player character first
+	local player = game.Players.LocalPlayer
+	local character = player and player.Character
+
+	if character and character.Parent then
+		target = character
+		if statusText then
+			statusText.Text = "Using your character for rotation"
+		end
+	else
+		-- Create a dummy character for preview
+		target = createDummyForPreview()
+		if statusText then
+			statusText.Text = "Created dummy character for rotation"
+		end
+	end
+
+	if currentMove.Cutscene.SlowMotion then
+		applySlowMotion(true)
+		task.delay(currentMove.Cutscene.Duration, function()
+			applySlowMotion(false)
+		end)
+	end
+
+	if currentMove.Cutscene.CameraShake then
+		applyCameraShake(currentMove.Cutscene.ShakeIntensity, currentMove.Cutscene.Duration)
+	end
+
+	if currentMove.Cutscene.Zoom then
+		applyZoom(currentMove.Cutscene.ZoomAmount, currentMove.Cutscene.Duration)
+	end
+
+	if currentMove.Cutscene.CameraRotate and target then
+		local angle = currentMove.Cutscene.RotationAngle
+		local speed = currentMove.Cutscene.RotationSpeed
+		if speed > 0 then
+			local duration = angle / speed
+			applyCameraRotation(
+				target,
+				angle,
+				speed,
+				currentMove.Cutscene.RotationDirection,
+				duration
+			)
+			if statusText then
+				statusText.Text = "Rotation: " .. angle .. "° at " .. speed .. "°/s (" .. string.format("%.2f", duration) .. "s)"
+			end
+		else
+			if statusText then
+				statusText.Text = "Rotation speed must be greater than 0"
+			end
+		end
+	elseif currentMove.Cutscene.CameraRotate and not target then
+		if statusText then
+			statusText.Text = "Could not create target for rotation"
+		end
+	end
+
+	if statusText then
+		task.wait(currentMove.Cutscene.Duration + 0.5)
+		statusText.Text = "Preview finished"
+		task.wait(1)
+		if updateStatusFunc then updateStatusFunc() end
+	end
+end)
+
+-- ========== CARD 7: TEMPLATE LIBRARY ==========
+local templateCard = createCard("📚 Template Library", 7)
+
+local searchBox = Instance.new("TextBox")
+searchBox.PlaceholderText = "Search templates..."
+searchBox.Text = ""
+searchBox.TextColor3 = Color3.fromRGB(200, 200, 200)
+searchBox.TextSize = 12
+searchBox.Font = Enum.Font.Gotham
+searchBox.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+searchBox.BorderSizePixel = 0
+searchBox.Size = UDim2.new(1, 0, 0, 32)
+searchBox.Position = UDim2.new(0, 0, 0, 40)
+searchBox.Parent = templateCard
+
+local searchCorner = Instance.new("UICorner")
+searchCorner.CornerRadius = UDim.new(0, 6)
+searchCorner.Parent = searchBox
+
+local templateListFrame = Instance.new("ScrollingFrame")
+templateListFrame.Size = UDim2.new(1, 0, 0, 200)
+templateListFrame.Position = UDim2.new(0, 0, 0, 85)
+templateListFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+templateListFrame.BorderSizePixel = 0
+templateListFrame.ScrollBarThickness = 6
+templateListFrame.Parent = templateCard
+
+local templateListCorner = Instance.new("UICorner")
+templateListCorner.CornerRadius = UDim.new(0, 8)
+templateListCorner.Parent = templateListFrame
+
+local templateListLayout = Instance.new("UIListLayout")
+templateListLayout.Padding = UDim.new(0, 4)
+templateListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+templateListLayout.Parent = templateListFrame
+
+local function refreshTemplateList(searchTerm)
+	for _, child in ipairs(templateListFrame:GetChildren()) do
+		if child:IsA("TextButton") or child:IsA("Frame") then
+			child:Destroy()
+		end
+	end
+
+	local allTemplates = {}
+	for _, t in ipairs(builtInTemplates) do
+		table.insert(allTemplates, t)
+	end
+	for _, t in ipairs(customTemplates) do
+		table.insert(allTemplates, t)
+	end
+
+	local filteredTemplates = allTemplates
+	if searchTerm and searchTerm ~= "" then
+		filteredTemplates = {}
+		local lowerSearch = string.lower(searchTerm)
+		for _, t in ipairs(allTemplates) do
+			if string.find(string.lower(t.Name), lowerSearch) or string.find(string.lower(t.Description), lowerSearch) then
+				table.insert(filteredTemplates, t)
+			end
+		end
+	end
+
+	if #filteredTemplates == 0 then
+		local emptyLabel = Instance.new("TextLabel")
+		emptyLabel.Text = "No templates found"
+		emptyLabel.TextColor3 = Color3.fromRGB(100, 100, 110)
+		emptyLabel.TextSize = 12
+		emptyLabel.BackgroundTransparency = 1
+		emptyLabel.Size = UDim2.new(1, 0, 0, 40)
+		emptyLabel.Parent = templateListFrame
+	else
+		for i, template in ipairs(filteredTemplates) do
+			local row = Instance.new("Frame")
+			row.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+			row.BorderSizePixel = 0
+			row.Size = UDim2.new(1, -10, 0, 70)
+			row.Parent = templateListFrame
+
+			local rowCorner = Instance.new("UICorner")
+			rowCorner.CornerRadius = UDim.new(0, 8)
+			rowCorner.Parent = row
+
+			local iconLabel = Instance.new("TextLabel")
+			iconLabel.Text = template.Icon or "📦"
+			iconLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+			iconLabel.TextSize = 24
+			iconLabel.BackgroundTransparency = 1
+			iconLabel.Size = UDim2.new(0, 50, 1, 0)
+			iconLabel.Parent = row
+
+			local nameLabel = Instance.new("TextLabel")
+			nameLabel.Text = template.Name
+			nameLabel.TextColor3 = Color3.fromRGB(220, 220, 230)
+			nameLabel.TextSize = 13
+			nameLabel.Font = Enum.Font.GothamSemibold
+			nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+			nameLabel.BackgroundTransparency = 1
+			nameLabel.Size = UDim2.new(1, -110, 0, 25)
+			nameLabel.Position = UDim2.new(0, 55, 0, 5)
+			nameLabel.Parent = row
+
+			local descLabel = Instance.new("TextLabel")
+			descLabel.Text = template.Description
+			descLabel.TextColor3 = Color3.fromRGB(140, 140, 150)
+			descLabel.TextSize = 10
+			descLabel.Font = Enum.Font.Gotham
+			descLabel.TextXAlignment = Enum.TextXAlignment.Left
+			descLabel.TextWrapped = true
+			descLabel.BackgroundTransparency = 1
+			descLabel.Size = UDim2.new(1, -110, 0, 30)
+			descLabel.Position = UDim2.new(0, 55, 0, 30)
+			descLabel.Parent = row
+
+			local loadBtn = Instance.new("TextButton")
+			loadBtn.Text = "Load"
+			loadBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+			loadBtn.TextSize = 11
+			loadBtn.Font = Enum.Font.GothamSemibold
+			loadBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+			loadBtn.BorderSizePixel = 0
+			loadBtn.Size = UDim2.new(0, 50, 0, 25)
+			loadBtn.Position = UDim2.new(1, -60, 0, 40)
+			loadBtn.Parent = row
+
+			local loadCorner = Instance.new("UICorner")
+			loadCorner.CornerRadius = UDim.new(0, 6)
+			loadCorner.Parent = loadBtn
+
+			loadBtn.MouseButton1Click:Connect(function()
+				loadTemplate(template)
+				if statusText then
+					statusText.Text = "Loaded template: " .. template.Name
+					task.wait(1.5)
+					if updateStatusFunc then updateStatusFunc() end
+				end
+			end)
+
+			if template.IsCustom then
+				local deleteBtn = Instance.new("TextButton")
+				deleteBtn.Text = "🗑️"
+				deleteBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+				deleteBtn.TextSize = 12
+				deleteBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+				deleteBtn.BorderSizePixel = 0
+				deleteBtn.Size = UDim2.new(0, 30, 0, 25)
+				deleteBtn.Position = UDim2.new(1, -100, 0, 40)
+				deleteBtn.Parent = row
+
+				local deleteCorner = Instance.new("UICorner")
+				deleteCorner.CornerRadius = UDim.new(0, 6)
+				deleteCorner.Parent = deleteBtn
+
+				local customIndex = nil
+				for idx, ct in ipairs(customTemplates) do
+					if ct.Name == template.Name then
+						customIndex = idx
+						break
+					end
+				end
+
+				deleteBtn.MouseButton1Click:Connect(function()
+					if customIndex then
+						removeCustomTemplate(customIndex)
+						refreshTemplateList(searchBox.Text)
+						if statusText then
+							statusText.Text = "Deleted template: " .. template.Name
+							task.wait(1.5)
+							if updateStatusFunc then updateStatusFunc() end
+						end
+					end
+				end)
+			end
+		end
+	end
+
+	task.defer(function()
+		templateListFrame.CanvasSize = UDim2.new(0, 0, 0, templateListLayout.AbsoluteContentSize.Y + 10)
+	end)
+end
+
+searchBox.Changed:Connect(function(prop)
+	if prop == "Text" then
+		refreshTemplateList(searchBox.Text)
+	end
+end)
+
+local saveTemplateButton = Instance.new("TextButton")
+saveTemplateButton.Text = "💾 Save Current Move as Template"
+saveTemplateButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+saveTemplateButton.TextSize = 12
+saveTemplateButton.Font = Enum.Font.GothamSemibold
+saveTemplateButton.BackgroundColor3 = Color3.fromRGB(100, 100, 120)
+saveTemplateButton.BorderSizePixel = 0
+saveTemplateButton.Size = UDim2.new(1, 0, 0, 36)
+saveTemplateButton.Position = UDim2.new(0, 0, 0, 295)
+saveTemplateButton.Parent = templateCard
+
+local saveTemplateCorner = Instance.new("UICorner")
+saveTemplateCorner.CornerRadius = UDim.new(0, 8)
+saveTemplateCorner.Parent = saveTemplateButton
+
+saveTemplateButton.MouseButton1Click:Connect(function()
+	local dialog = Instance.new("Frame")
+	dialog.Size = UDim2.new(0, 300, 0, 180)
+	dialog.Position = UDim2.new(0.5, -150, 0.5, -90)
+	dialog.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+	dialog.BorderSizePixel = 0
+	dialog.Parent = mainGui
+
+	local dialogCorner = Instance.new("UICorner")
+	dialogCorner.CornerRadius = UDim.new(0, 10)
+	dialogCorner.Parent = dialog
+
+	local title = Instance.new("TextLabel")
+	title.Text = "Save as Template"
+	title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	title.TextSize = 14
+	title.Font = Enum.Font.GothamSemibold
+	title.BackgroundTransparency = 1
+	title.Size = UDim2.new(1, 0, 0, 40)
+	title.Parent = dialog
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Text = "Template Name:"
+	nameLabel.TextColor3 = Color3.fromRGB(160, 160, 170)
+	nameLabel.TextSize = 11
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Size = UDim2.new(0, 100, 0, 30)
+	nameLabel.Position = UDim2.new(0, 15, 0, 50)
+	nameLabel.Parent = dialog
+
+	local nameBox = Instance.new("TextBox")
+	nameBox.Text = currentMove.Name .. " (Template)"
+	nameBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+	nameBox.TextSize = 12
+	nameBox.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+	nameBox.BorderSizePixel = 0
+	nameBox.Size = UDim2.new(0, 150, 0, 30)
+	nameBox.Position = UDim2.new(0, 120, 0, 50)
+	nameBox.Parent = dialog
+
+	local nameCorner = Instance.new("UICorner")
+	nameCorner.CornerRadius = UDim.new(0, 6)
+	nameCorner.Parent = nameBox
+
+	local descLabel = Instance.new("TextLabel")
+	descLabel.Text = "Description:"
+	descLabel.TextColor3 = Color3.fromRGB(160, 160, 170)
+	descLabel.TextSize = 11
+	descLabel.BackgroundTransparency = 1
+	descLabel.Size = UDim2.new(0, 100, 0, 30)
+	descLabel.Position = UDim2.new(0, 15, 0, 90)
+	descLabel.Parent = dialog
+
+	local descBox = Instance.new("TextBox")
+	descBox.Text = "Custom move template"
+	descBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+	descBox.TextSize = 11
+	descBox.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+	descBox.BorderSizePixel = 0
+	descBox.Size = UDim2.new(0, 150, 0, 30)
+	descBox.Position = UDim2.new(0, 120, 0, 90)
+	descBox.Parent = dialog
+
+	local descCorner = Instance.new("UICorner")
+	descCorner.CornerRadius = UDim.new(0, 6)
+	descCorner.Parent = descBox
+
+	local saveBtn = Instance.new("TextButton")
+	saveBtn.Text = "Save"
+	saveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	saveBtn.TextSize = 12
+	saveBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+	saveBtn.BorderSizePixel = 0
+	saveBtn.Size = UDim2.new(0, 100, 0, 36)
+	saveBtn.Position = UDim2.new(0.5, -110, 1, -50)
+	saveBtn.Parent = dialog
+
+	local saveCorner = Instance.new("UICorner")
+	saveCorner.CornerRadius = UDim.new(0, 6)
+	saveCorner.Parent = saveBtn
+
+	local cancelBtn = Instance.new("TextButton")
+	cancelBtn.Text = "Cancel"
+	cancelBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	cancelBtn.TextSize = 12
+	cancelBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 90)
+	cancelBtn.BorderSizePixel = 0
+	cancelBtn.Size = UDim2.new(0, 100, 0, 36)
+	cancelBtn.Position = UDim2.new(0.5, 10, 1, -50)
+	cancelBtn.Parent = dialog
+
+	local cancelCorner = Instance.new("UICorner")
+	cancelCorner.CornerRadius = UDim.new(0, 6)
+	cancelCorner.Parent = cancelBtn
+
+	local function closeDialog()
+		dialog:Destroy()
+	end
+
+	saveBtn.MouseButton1Click:Connect(function()
+		local templateName = nameBox.Text
+		if templateName == "" then
+			templateName = "Unnamed Template"
+		end
+		addCustomTemplate(templateName, descBox.Text, "⭐")
+		refreshTemplateList(searchBox.Text)
+		if statusText then
+			statusText.Text = "Saved template: " .. templateName
+			task.wait(1.5)
+			if updateStatusFunc then updateStatusFunc() end
+		end
+		closeDialog()
+	end)
+
+	cancelBtn.MouseButton1Click:Connect(closeDialog)
+end)
+
+local refreshTemplatesButton = Instance.new("TextButton")
+refreshTemplatesButton.Text = "🔄 Refresh Templates"
+refreshTemplatesButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+refreshTemplatesButton.TextSize = 11
+refreshTemplatesButton.Font = Enum.Font.Gotham
+refreshTemplatesButton.BackgroundColor3 = Color3.fromRGB(60, 60, 65)
+refreshTemplatesButton.BorderSizePixel = 0
+refreshTemplatesButton.Size = UDim2.new(1, 0, 0, 32)
+refreshTemplatesButton.Position = UDim2.new(0, 0, 0, 340)
+refreshTemplatesButton.Parent = templateCard
+
+local refreshTemplatesCorner = Instance.new("UICorner")
+refreshTemplatesCorner.CornerRadius = UDim.new(0, 8)
+refreshTemplatesCorner.Parent = refreshTemplatesButton
+
+refreshTemplatesButton.MouseButton1Click:Connect(function()
+	refreshTemplateList(searchBox.Text)
+	if statusText then
+		statusText.Text = "Templates refreshed"
+		task.wait(1)
+		if updateStatusFunc then updateStatusFunc() end
+	end
+end)
+
+refreshTemplateList("")
+
+-- ========== CARD 8: SAVE / LOAD ==========
+local saveLoadCard = createCard("💾 Save / Load", 8)
+
+local saveButton = Instance.new("TextButton")
+saveButton.Text = "💾 Save Current Move"
+saveButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+saveButton.TextSize = 13
+saveButton.Font = Enum.Font.GothamSemibold
+saveButton.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+saveButton.BorderSizePixel = 0
+saveButton.Size = UDim2.new(1, 0, 0, 40)
+saveButton.Position = UDim2.new(0, 0, 0, 40)
+saveButton.Parent = saveLoadCard
+
+local saveButtonCorner = Instance.new("UICorner")
+saveButtonCorner.CornerRadius = UDim.new(0, 8)
+saveButtonCorner.Parent = saveButton
+
+saveButton.MouseButton1Click:Connect(function()
+	saveCurrentMove()
+end)
+
+local listLabel = Instance.new("TextLabel")
+listLabel.Text = "Saved Moves (click to load, right-click to delete):"
+listLabel.TextColor3 = Color3.fromRGB(160, 160, 170)
+listLabel.TextSize = 11
+listLabel.Font = Enum.Font.Gotham
+listLabel.TextXAlignment = Enum.TextXAlignment.Left
+listLabel.BackgroundTransparency = 1
+listLabel.Size = UDim2.new(1, 0, 0, 20)
+listLabel.Position = UDim2.new(0, 0, 0, 95)
+listLabel.Parent = saveLoadCard
+
+local moveListBox = Instance.new("ScrollingFrame")
+moveListBox.Size = UDim2.new(1, 0, 0, 120)
+moveListBox.Position = UDim2.new(0, 0, 0, 118)
+moveListBox.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+moveListBox.BorderSizePixel = 0
+moveListBox.ScrollBarThickness = 6
+moveListBox.Parent = saveLoadCard
+
+local moveListCorner = Instance.new("UICorner")
+moveListCorner.CornerRadius = UDim.new(0, 6)
+moveListCorner.Parent = moveListBox
+
+local moveListLayout = Instance.new("UIListLayout")
+moveListLayout.Padding = UDim.new(0, 4)
+moveListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+moveListLayout.Parent = moveListBox
+
+function refreshMoveListFunc()
+	local childrenToRemove = {}
+	for _, child in ipairs(moveListBox:GetChildren()) do
+		if child:IsA("TextButton") or child:IsA("TextLabel") then
+			table.insert(childrenToRemove, child)
+		end
+	end
+	for _, child in ipairs(childrenToRemove) do
+		child:Destroy()
+	end
+
+	local savedNames = getSavedMoveNames()
+
+	if #savedNames == 0 then
+		local emptyLabel = Instance.new("TextLabel")
+		emptyLabel.Name = "EmptyLabel"
+		emptyLabel.Text = "No saved moves"
+		emptyLabel.TextColor3 = Color3.fromRGB(100, 100, 110)
+		emptyLabel.TextSize = 12
+		emptyLabel.BackgroundTransparency = 1
+		emptyLabel.Size = UDim2.new(1, 0, 0, 30)
+		emptyLabel.Parent = moveListBox
+	else
+		for _, moveName in ipairs(savedNames) do
+			local moveButton = Instance.new("TextButton")
+			moveButton.Name = "MoveButton_" .. string.gsub(moveName, "[^%w]", "_")
+			moveButton.Text = "📁 " .. moveName
+			moveButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+			moveButton.TextSize = 12
+			moveButton.TextXAlignment = Enum.TextXAlignment.Left
+			moveButton.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+			moveButton.BorderSizePixel = 0
+			moveButton.Size = UDim2.new(1, -10, 0, 32)
+			moveButton.Parent = moveListBox
+
+			local btnCorner = Instance.new("UICorner")
+			btnCorner.CornerRadius = UDim.new(0, 4)
+			btnCorner.Parent = moveButton
+
+			moveButton.MouseButton1Click:Connect(function()
+				loadMoveByName(moveName)
+			end)
+
+			moveButton.MouseButton2Click:Connect(function()
+				deleteMoveByName(moveName)
+			end)
+		end
+	end
+
+	task.defer(function()
+		moveListBox.CanvasSize = UDim2.new(0, 0, 0, moveListLayout.AbsoluteContentSize.Y + 10)
+	end)
+end
+
+local refreshButton = Instance.new("TextButton")
+refreshButton.Text = "🔄 Refresh List"
+refreshButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+refreshButton.TextSize = 12
+refreshButton.Font = Enum.Font.Gotham
+refreshButton.BackgroundColor3 = Color3.fromRGB(60, 60, 65)
+refreshButton.BorderSizePixel = 0
+refreshButton.Size = UDim2.new(1, 0, 0, 32)
+refreshButton.Position = UDim2.new(0, 0, 0, 250)
+refreshButton.Parent = saveLoadCard
+
+local refreshButtonCorner = Instance.new("UICorner")
+refreshButtonCorner.CornerRadius = UDim.new(0, 6)
+refreshButtonCorner.Parent = refreshButton
+
+refreshButton.MouseButton1Click:Connect(function()
+	refreshMoveListFunc()
+	if statusText then
+		statusText.Text = "List refreshed"
+		task.wait(1)
+		if updateStatusFunc then updateStatusFunc() end
+	end
+end)
+
+refreshMoveListFunc()
+
+-- ========== STATUS BAR WITH SUPPORT BUTTON ==========
+local statusBar = Instance.new("Frame")
+statusBar.Size = UDim2.new(1, 0, 0, 36)
+statusBar.Position = UDim2.new(0, 0, 1, -36)
+statusBar.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+statusBar.BorderSizePixel = 0
+statusBar.Parent = mainFrame
+
+local statusTextLabel = Instance.new("TextLabel")
+statusTextLabel.Text = "Ready"
+statusTextLabel.TextColor3 = Color3.fromRGB(140, 140, 150)
+statusTextLabel.TextSize = 11
+statusTextLabel.Font = Enum.Font.Gotham
+statusTextLabel.TextXAlignment = Enum.TextXAlignment.Left
+statusTextLabel.BackgroundTransparency = 1
+statusTextLabel.Size = UDim2.new(1, -100, 1, 0)
+statusTextLabel.Position = UDim2.new(0, 12, 0, 0)
+statusTextLabel.Parent = statusBar
+
+statusText = statusTextLabel
+
+-- Support Button
+local supportButton = Instance.new("TextButton")
+supportButton.Text = "❤️ Support"
+supportButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+supportButton.TextSize = 11
+supportButton.Font = Enum.Font.GothamSemibold
+supportButton.BackgroundColor3 = Color3.fromRGB(200, 80, 80)
+supportButton.BorderSizePixel = 0
+supportButton.Size = UDim2.new(0, 80, 1, -8)
+supportButton.Position = UDim2.new(1, -90, 0, 4)
+supportButton.Parent = statusBar
+
+local supportCorner = Instance.new("UICorner")
+supportCorner.CornerRadius = UDim.new(0, 6)
+supportCorner.Parent = supportButton
+
+local function showSupportDialog()
+	local dialog = Instance.new("Frame")
+	dialog.Size = UDim2.new(0, 360, 0, 320)
+	dialog.Position = UDim2.new(0.5, -180, 0.5, -160)
+	dialog.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+	dialog.BorderSizePixel = 0
+	dialog.Parent = mainGui
+
+	local dialogCorner = Instance.new("UICorner")
+	dialogCorner.CornerRadius = UDim.new(0, 12)
+	dialogCorner.Parent = dialog
+
+	local title = Instance.new("TextLabel")
+	title.Text = "❤️ Support MotionForge"
+	title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	title.TextSize = 18
+	title.Font = Enum.Font.GothamBold
+	title.BackgroundTransparency = 1
+	title.Size = UDim2.new(1, 0, 0, 45)
+	title.Parent = dialog
+
+	local message = Instance.new("TextLabel")
+	message.Text = "MotionForge is completely free and open source.\nIf you find it useful, consider supporting its development!"
+	message.TextColor3 = Color3.fromRGB(160, 160, 170)
+	message.TextSize = 11
+	message.Font = Enum.Font.Gotham
+	message.TextWrapped = true
+	message.TextXAlignment = Enum.TextXAlignment.Center
+	message.BackgroundTransparency = 1
+	message.Size = UDim2.new(1, -20, 0, 45)
+	message.Position = UDim2.new(0, 10, 0, 50)
+	message.Parent = dialog
+
+	-- Separator line
+	local line1 = Instance.new("Frame")
+	line1.Size = UDim2.new(1, -40, 0, 1)
+	line1.Position = UDim2.new(0, 20, 0, 105)
+	line1.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+	line1.BorderSizePixel = 0
+	line1.Parent = dialog
+
+	-- Donation Links Label
+	local donateLabel = Instance.new("TextLabel")
+	donateLabel.Text = "💝 Ways to Support:"
+	donateLabel.TextColor3 = Color3.fromRGB(200, 200, 210)
+	donateLabel.TextSize = 12
+	donateLabel.Font = Enum.Font.GothamSemibold
+	donateLabel.TextXAlignment = Enum.TextXAlignment.Left
+	donateLabel.BackgroundTransparency = 1
+	donateLabel.Size = UDim2.new(1, -40, 0, 20)
+	donateLabel.Position = UDim2.new(0, 20, 0, 115)
+	donateLabel.Parent = dialog
+
+	-- Roblox Username (Robux donations)
+	local robuxText = Instance.new("TextLabel")
+	robuxText.Text = "🤖 Roblox: Send Robux to @Gorrilla567_h url(roblox.com/users/5241414167/profile)"
+	robuxText.TextColor3 = Color3.fromRGB(100, 150, 255)
+	robuxText.TextSize = 11
+	robuxText.Font = Enum.Font.Gotham
+	robuxText.TextXAlignment = Enum.TextXAlignment.Left
+	robuxText.BackgroundTransparency = 1
+	robuxText.Size = UDim2.new(1, -40, 0, 20)
+	robuxText.Position = UDim2.new(0, 20, 0, 140)
+	robuxText.Parent = dialog
+
+	-- PayPal Link Text (Update this with your actual PayPal link)
+	local paypalText = Instance.new("TextLabel")
+	paypalText.Text = "💵 PayPal: paypal.me/Gorrilla567h"
+	paypalText.TextColor3 = Color3.fromRGB(100, 150, 255)
+	paypalText.TextSize = 11
+	paypalText.Font = Enum.Font.Gotham
+	paypalText.TextXAlignment = Enum.TextXAlignment.Left
+	paypalText.BackgroundTransparency = 1
+	paypalText.Size = UDim2.new(1, -40, 0, 20)
+	paypalText.Position = UDim2.new(0, 20, 0, 165)
+	paypalText.Parent = dialog
+
+	-- Ko-fi Link Text
+	local koFiText = Instance.new("TextLabel")
+	koFiText.Text = "☕ Ko-fi: ko-fi.com/gamegeektech_hope"
+	koFiText.TextColor3 = Color3.fromRGB(100, 150, 255)
+	koFiText.TextSize = 11
+	koFiText.Font = Enum.Font.Gotham
+	koFiText.TextXAlignment = Enum.TextXAlignment.Left
+	koFiText.BackgroundTransparency = 1
+	koFiText.Size = UDim2.new(1, -40, 0, 20)
+	koFiText.Position = UDim2.new(0, 20, 0, 190)
+	koFiText.Parent = dialog
+
+	-- Note about Roblox Plus
+	local noteText = Instance.new("TextLabel")
+	noteText.Text = "※ Roblox Plus subscription required to send Robux"
+	noteText.TextColor3 = Color3.fromRGB(100, 100, 110)
+	noteText.TextSize = 9
+	noteText.Font = Enum.Font.Gotham
+	noteText.TextXAlignment = Enum.TextXAlignment.Left
+	noteText.BackgroundTransparency = 1
+	noteText.Size = UDim2.new(1, -40, 0, 15)
+	noteText.Position = UDim2.new(0, 20, 0, 212)
+	noteText.Parent = dialog
+
+	-- Update note
+	local updateNote = Instance.new("TextLabel")
+	updateNote.Text = "⭐ Updates will be posted on the Roblox Library page"
+	updateNote.TextColor3 = Color3.fromRGB(120, 120, 130)
+	updateNote.TextSize = 10
+	updateNote.Font = Enum.Font.Gotham
+	updateNote.TextXAlignment = Enum.TextXAlignment.Center
+	updateNote.BackgroundTransparency = 1
+	updateNote.Size = UDim2.new(1, -40, 0, 20)
+	updateNote.Position = UDim2.new(0, 20, 0, 240)
+	updateNote.Parent = dialog
+
+	-- Close button
+	local closeBtn = Instance.new("TextButton")
+	closeBtn.Text = "Close"
+	closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	closeBtn.TextSize = 13
+	closeBtn.Font = Enum.Font.GothamSemibold
+	closeBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+	closeBtn.BorderSizePixel = 0
+	closeBtn.Size = UDim2.new(0, 100, 0, 36)
+	closeBtn.Position = UDim2.new(0.5, -50, 1, -50)
+	closeBtn.Parent = dialog
+
+	local closeCorner = Instance.new("UICorner")
+	closeCorner.CornerRadius = UDim.new(0, 8)
+	closeCorner.Parent = closeBtn
+
+	closeBtn.MouseButton1Click:Connect(function()
+		dialog:Destroy()
+	end)
+end
+
+supportButton.MouseButton1Click:Connect(showSupportDialog)
+
+function updateStatusFunc()
+	if statusText then
+		local eventCount = #currentMove.Timeline
+		statusText.Text = string.format("Editing: %s | Dmg: %s | CD: %ss | Events: %d", currentMove.Name, currentMove.Damage, currentMove.Cooldown, eventCount)
+	end
+end
+
+updateStatusFunc()
+
+-- ========== WELCOME MESSAGE (First Time) ==========
+local hasSeenWelcome = plugin:GetSetting("MotionForge_WelcomeSeen")
+if not hasSeenWelcome or hasSeenWelcome == "" then
+	task.delay(0.5, function()
+		local welcomeDialog = Instance.new("Frame")
+		welcomeDialog.Size = UDim2.new(0, 400, 0, 300)
+		welcomeDialog.Position = UDim2.new(0.5, -200, 0.5, -150)
+		welcomeDialog.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+		welcomeDialog.BorderSizePixel = 0
+		welcomeDialog.Parent = mainGui
+
+		local welcomeCorner = Instance.new("UICorner")
+		welcomeCorner.CornerRadius = UDim.new(0, 12)
+		welcomeCorner.Parent = welcomeDialog
+
+		local title = Instance.new("TextLabel")
+		title.Text = "⚡ Welcome to MotionForge!"
+		title.TextColor3 = Color3.fromRGB(255, 255, 255)
+		title.TextSize = 18
+		title.Font = Enum.Font.GothamBold
+		title.BackgroundTransparency = 1
+		title.Size = UDim2.new(1, 0, 0, 50)
+		title.Parent = welcomeDialog
+
+		local tips = Instance.new("TextLabel")
+		tips.Text = "Quick Tips:\n\n• Create a move by setting Name, Damage, and Cooldown\n• Click '+ Add Event' to add hitboxes at specific times\n• Click '👁️ Show Hitbox Preview' to see your hitbox\n• Use '📦 Export' to get Lua code for your game\n• Save your moves to use them later\n• Check out the Template Library for examples"
+		tips.TextColor3 = Color3.fromRGB(160, 160, 170)
+		tips.TextSize = 11
+		tips.Font = Enum.Font.Gotham
+		tips.TextXAlignment = Enum.TextXAlignment.Left
+		tips.TextYAlignment = Enum.TextYAlignment.Top
+		tips.BackgroundTransparency = 1
+		tips.Size = UDim2.new(1, -20, 1, -100)
+		tips.Position = UDim2.new(0, 10, 0, 55)
+		tips.Parent = welcomeDialog
+
+		local gotItBtn = Instance.new("TextButton")
+		gotItBtn.Text = "Got it!"
+		gotItBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		gotItBtn.TextSize = 13
+		gotItBtn.Font = Enum.Font.GothamSemibold
+		gotItBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+		gotItBtn.BorderSizePixel = 0
+		gotItBtn.Size = UDim2.new(0, 120, 0, 36)
+		gotItBtn.Position = UDim2.new(0.5, -60, 1, -55)
+		gotItBtn.Parent = welcomeDialog
+
+		local gotItCorner = Instance.new("UICorner")
+		gotItCorner.CornerRadius = UDim.new(0, 8)
+		gotItCorner.Parent = gotItBtn
+
+		gotItBtn.MouseButton1Click:Connect(function()
+			welcomeDialog:Destroy()
+			plugin:SetSetting("MotionForge_WelcomeSeen", "true")
+		end)
+	end)
+end
+
+mainGui:GetPropertyChangedSignal("Enabled"):Connect(function()
+	if not mainGui.Enabled then
+		clearPreview()
+		cleanupCutsceneEffects()
+		destroyDummy()
+	end
+end)
+
+task.defer(function()
+	contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Wait()
+	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, contentLayout.AbsoluteContentSize.Y + 16)
+	scrollContent.Size = UDim2.new(1, 0, 0, contentLayout.AbsoluteContentSize.Y)
+end)
+
+mainGui.Enabled = true
+
+button.Click:Connect(function()
+	mainGui.Enabled = not mainGui.Enabled
+end)
+
+print("MotionForge v1.3.1 loaded! Angle + Speed control fixed.")]]></ProtectedString>
+			<bool name="Disabled">false</bool>
+			<Content name="LinkedSource"><null></null></Content>
+			<token name="RunContext">0</token>
+			<string name="ScriptGuid">{142908B1-DB25-44B0-983A-FC0EA48EB09B}</string>
+			<BinaryString name="AttributesSerialize"></BinaryString>
+			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+			<bool name="DefinesCapabilities">false</bool>
+			<string name="Name">Script</string>
+			<int64 name="SourceAssetId">-1</int64>
+			<BinaryString name="Tags"></BinaryString>
+		</Properties>
+	</Item>
+</roblox>
