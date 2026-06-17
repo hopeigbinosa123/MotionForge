@@ -3,7 +3,7 @@
 **A free, open-source Roblox Studio plugin for building custom combat moves visually.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Roblox](https://img.shields.io/badge/Roblox-Creator%20Store-blue)](https://www.roblox.com/library/...)
+[![Roblox](https://img.shields.io/badge/Roblox-Creator%20Store-blue)]((https://create.roblox.com/store/asset/80433496048831/MotionForge-Beta))
 [![Made with Lua](https://img.shields.io/badge/Made%20with-Lua-2C2D72?logo=lua&logoColor=white)](https://www.lua.org/)
 
 ## 📖 Table of Contents
