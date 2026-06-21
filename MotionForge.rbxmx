@@ -1,12 +1,12 @@
 <roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
 	<External>null</External>
 	<External>nil</External>
-	<Item class="Script" referent="RBXBF0A82658FA84EEB8B7C2A38B4EFF041">
+	<Item class="Script" referent="RBX4BA72996FE4C4D188D846665FC8E83D7">
 		<Properties>
-			<ProtectedString name="Source"><![CDATA[-- MotionForge v1.3.1 - Complete Combat Move Builder Plugin (Fixed)
+			<ProtectedString name="Source"><![CDATA[-- MotionForge v1.4.1 - Complete Combat Move Builder Plugin (Custom Dummy Fix)
 -- Created by Gorrilla567_h (Roblox)
 -- Free & Open Source - MIT License
--- GitHub: https://github.com/Gorrilla567_h/MotionForge
+-- GitHub: https://github.com/hopeigbinosa123/MotionForge
 
 local plugin = plugin
 
@@ -49,7 +49,7 @@ logoText.Position = UDim2.new(0, 12, 0, 0)
 logoText.Parent = topBar
 
 local versionBadge = Instance.new("TextLabel")
-versionBadge.Text = "v1.3.1"
+versionBadge.Text = "v1.4.1"
 versionBadge.TextColor3 = Color3.fromRGB(100, 100, 110)
 versionBadge.TextSize = 11
 versionBadge.Font = Enum.Font.Gotham
@@ -112,6 +112,18 @@ local currentPreviewParts = {}
 
 -- ========== CUTSCENE SHAKE CONNECTIONS ==========
 local shakeConnections = {}
+
+-- ========== ANIMATION PREVIEW VARIABLES ==========
+local previewDummy = nil
+local previewAnimator = nil
+local previewPlaying = false
+local previewConnection = nil
+local previewAnimTrack = nil
+local previewSettings = {
+	PlaybackSpeed = 1.0,
+	CurrentTime = 0,
+	AnimationDuration = 0
+}
 
 -- ========== CURRENT MOVE DATA ==========
 local currentMove = {
@@ -581,6 +593,188 @@ local function toggleVisualizer()
 	end
 end
 
+-- ========== ANIMATION PREVIEW FUNCTIONS ==========
+
+local function createPreviewDummy()
+	if previewDummy and previewDummy.Parent then
+		return previewDummy
+	end
+
+	if previewDummy then
+		previewDummy:Destroy()
+		previewDummy = nil
+		previewAnimator = nil
+	end
+
+	local dummy = Instance.new("Model")
+	dummy.Name = "MotionForge_Dummy"
+
+	local rootPart = Instance.new("Part")
+	rootPart.Name = "HumanoidRootPart"
+	rootPart.Size = Vector3.new(2, 1, 1)
+	rootPart.Shape = Enum.PartType.Block
+	rootPart.Anchored = true
+	rootPart.CanCollide = false
+	rootPart.Transparency = 0.5
+	rootPart.BrickColor = BrickColor.new("Bright blue")
+	rootPart.Parent = dummy
+
+	local camera = workspace.CurrentCamera
+	if camera then
+		local camPos = camera.CFrame.Position
+		local lookVec = camera.CFrame.LookVector
+		rootPart.Position = camPos + lookVec * 15
+		rootPart.Position = rootPart.Position + Vector3.new(0, 5, 0)
+	else
+		rootPart.Position = Vector3.new(0, 5, 0)
+	end
+
+	local torso = Instance.new("Part")
+	torso.Name = "Torso"
+	torso.Size = Vector3.new(2, 1.5, 1)
+	torso.Shape = Enum.PartType.Block
+	torso.Anchored = true
+	torso.CanCollide = false
+	torso.Transparency = 0.5
+	torso.BrickColor = BrickColor.new("Bright red")
+	torso.Position = rootPart.Position + Vector3.new(0, 1.5, 0)
+	torso.Parent = dummy
+
+	local head = Instance.new("Part")
+	head.Name = "Head"
+	head.Size = Vector3.new(1.2, 1.2, 1.2)
+	head.Shape = Enum.PartType.Ball
+	head.Anchored = true
+	head.CanCollide = false
+	head.Transparency = 0.5
+	head.BrickColor = BrickColor.new("Bright yellow")
+	head.Position = rootPart.Position + Vector3.new(0, 3.5, 0)
+	head.Parent = dummy
+
+	local humanoid = Instance.new("Humanoid")
+	humanoid.Parent = dummy
+
+	previewAnimator = Instance.new("Animator")
+	previewAnimator.Parent = humanoid
+
+	dummy.Parent = workspace
+	previewDummy = dummy
+
+	if statusText then
+		statusText.Text = "Dummy created! Load animation to preview."
+		task.wait(1.5)
+		if updateStatusFunc then updateStatusFunc() end
+	end
+
+	return previewDummy
+end
+
+local function destroyPreviewDummy()
+	if previewDummy then
+		previewDummy:Destroy()
+		previewDummy = nil
+		previewAnimator = nil
+	end
+end
+
+local function loadAnimationOnDummy(animationId)
+	if not previewDummy then
+		createPreviewDummy()
+		if not previewAnimator then return end
+	end
+
+	if not animationId or animationId == "" then
+		if statusText then
+			statusText.Text = "No animation ID set"
+			task.wait(1.5)
+			if updateStatusFunc then updateStatusFunc() end
+		end
+		return
+	end
+
+	local animation = Instance.new("Animation")
+	animation.AnimationId = animationId
+
+	local animTrack = previewAnimator:LoadAnimation(animation)
+	if animTrack then
+		previewAnimTrack = animTrack
+		previewSettings.AnimationDuration = animTrack.Length or 2
+		if statusText then
+			statusText.Text = "Animation loaded: " .. string.format("%.2f", previewSettings.AnimationDuration) .. "s"
+			task.wait(1.5)
+			if updateStatusFunc then updateStatusFunc() end
+		end
+	else
+		if statusText then
+			statusText.Text = "Failed to load animation"
+			task.wait(1.5)
+			if updateStatusFunc then updateStatusFunc() end
+		end
+	end
+end
+
+local function playPreviewAnimation()
+	if not previewAnimTrack then
+		if statusText then
+			statusText.Text = "Load an animation first!"
+			task.wait(1.5)
+			if updateStatusFunc then updateStatusFunc() end
+		end
+		return
+	end
+
+	if previewPlaying then
+		previewAnimTrack:Stop()
+		previewPlaying = false
+		if previewConnection then
+			previewConnection:Disconnect()
+			previewConnection = nil
+		end
+		if statusText then
+			statusText.Text = "Preview paused"
+			task.wait(1)
+			if updateStatusFunc then updateStatusFunc() end
+		end
+		return
+	end
+
+	previewAnimTrack:Play(0, 1, previewSettings.PlaybackSpeed)
+	previewPlaying = true
+
+	if statusText then
+		statusText.Text = "Preview playing..."
+	end
+
+	local startTime = tick()
+	previewConnection = game:GetService("RunService").RenderStepped:Connect(function()
+		local elapsed = tick() - startTime
+		if elapsed >= previewSettings.AnimationDuration then
+			previewAnimTrack:Stop()
+			previewPlaying = false
+			previewConnection:Disconnect()
+			previewConnection = nil
+			if statusText then
+				statusText.Text = "Preview finished"
+				task.wait(1)
+				if updateStatusFunc then updateStatusFunc() end
+			end
+		end
+		previewSettings.CurrentTime = elapsed
+	end)
+end
+
+local function stopPreviewAnimation()
+	if previewAnimTrack then
+		previewAnimTrack:Stop()
+	end
+	if previewConnection then
+		previewConnection:Disconnect()
+		previewConnection = nil
+	end
+	previewPlaying = false
+	previewSettings.CurrentTime = 0
+end
+
 -- ========== CUTSCENE FUNCTIONS ==========
 local function applySlowMotion(enable)
 	if statusText and enable then
@@ -646,15 +840,15 @@ local function applyZoom(zoomAmount, duration)
 end
 
 -- Dummy character for rotation preview
-local dummyCharacter = nil
+local rotationDummy = nil
 
-local function createDummyForPreview()
-	if dummyCharacter and dummyCharacter.Parent then
-		return dummyCharacter
+local function createRotationDummy()
+	if rotationDummy and rotationDummy.Parent then
+		return rotationDummy
 	end
 
 	local dummy = Instance.new("Model")
-	dummy.Name = "MotionForge_Dummy"
+	dummy.Name = "MotionForge_RotationDummy"
 
 	local rootPart = Instance.new("Part")
 	rootPart.Name = "HumanoidRootPart"
@@ -672,14 +866,14 @@ local function createDummyForPreview()
 	humanoid.Parent = dummy
 
 	dummy.Parent = workspace
-	dummyCharacter = dummy
-	return dummy
+	rotationDummy = dummy
+	return rotationDummy
 end
 
-local function destroyDummy()
-	if dummyCharacter then
-		dummyCharacter:Destroy()
-		dummyCharacter = nil
+local function destroyRotationDummy()
+	if rotationDummy then
+		rotationDummy:Destroy()
+		rotationDummy = nil
 	end
 end
 
@@ -718,7 +912,6 @@ local function applyCameraRotation(target, angle, speed, direction, duration)
 			return
 		end
 
-		-- Calculate how much of the angle we've completed
 		local progress = elapsed / duration
 		local currentAngle = angle * progress * directionMultiplier
 
@@ -753,14 +946,14 @@ local function cleanupCutsceneEffects()
 		camera.FieldOfView = 70
 	end
 
-	destroyDummy()
+	destroyRotationDummy()
 end
 
 -- ========== LUA CODE EXPORTER ==========
 local function generateHitboxModule()
 	return [[
 -- MotionForge Hitbox System
--- Generated by MotionForge v1.3.1
+-- Generated by MotionForge v1.4.1
 -- Created by Gorrilla567_h - Free & Open Source
 
 local HitboxSystem = {}
@@ -850,9 +1043,9 @@ local function generateMoveCode()
 
 	return string.format([[
 -- MotionForge Exported Move: %s
--- Generated by MotionForge v1.3.1
+-- Generated by MotionForge v1.4.1
 -- Created by Gorrilla567_h - Free & Open Source
--- Support development: https://paypal.me/yourusername
+-- Support development: https://paypal.me/Gorrilla567h
 
 local HitboxSystem = require(script.Parent.HitboxSystem)
 
@@ -1179,7 +1372,7 @@ local function saveCurrentMove()
 		Knockback = currentMove.Knockback,
 		Timeline = currentMove.Timeline,
 		Cutscene = currentMove.Cutscene,
-		Version = "1.3.1"
+		Version = "1.4.1"
 	}
 
 	local success = pcall(function()
@@ -1326,7 +1519,7 @@ local knockbackRow, knockbackInputTemp = createRow(combatCard, "Knockback", curr
 end, 80)
 knockbackInput = knockbackInputTemp
 
--- ========== CARD 4: TIMELINE EDITOR ==========
+-- ========== CARD 4: TIMELINE EDITOR (with Animation Preview) ==========
 local timelineCard = createCard("⏱️ Timeline", 4)
 
 local eventListFrame = Instance.new("ScrollingFrame")
@@ -1751,7 +1944,7 @@ visualizerButton.Font = Enum.Font.Gotham
 visualizerButton.BackgroundColor3 = Color3.fromRGB(100, 100, 120)
 visualizerButton.BorderSizePixel = 0
 visualizerButton.Size = UDim2.new(1, 0, 0, 32)
-visualizerButton.Position = UDim2.new(0, 0, 0, 245)
+visualizerButton.Position = UDim2.new(0, 0, 0, 450)
 visualizerButton.Parent = timelineCard
 
 local visualizerCorner = Instance.new("UICorner")
@@ -1770,7 +1963,7 @@ testButton.Font = Enum.Font.Gotham
 testButton.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
 testButton.BorderSizePixel = 0
 testButton.Size = UDim2.new(1, 0, 0, 32)
-testButton.Position = UDim2.new(0, 0, 0, 285)
+testButton.Position = UDim2.new(0, 0, 0, 490)
 testButton.Parent = timelineCard
 
 local testCorner = Instance.new("UICorner")
@@ -1779,10 +1972,127 @@ testCorner.Parent = testButton
 
 testButton.MouseButton1Click:Connect(function()
 	if statusText then
-		statusText.Text = "Animation preview coming in a future update!"
+		statusText.Text = "Animation preview built-in! Use the new buttons above."
 		task.wait(1.5)
 		if updateStatusFunc then updateStatusFunc() end
 	end
+end)
+
+-- ========== ANIMATION PREVIEW CONTROLS ==========
+
+-- Create dummy button
+local createDummyButton = Instance.new("TextButton")
+createDummyButton.Text = "🧍 Create Dummy"
+createDummyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+createDummyButton.TextSize = 12
+createDummyButton.Font = Enum.Font.Gotham
+createDummyButton.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+createDummyButton.BorderSizePixel = 0
+createDummyButton.Size = UDim2.new(0.5, -2, 0, 32)
+createDummyButton.Position = UDim2.new(0, 0, 0, 325)
+createDummyButton.Parent = timelineCard
+
+local dummyCorner = Instance.new("UICorner")
+dummyCorner.CornerRadius = UDim.new(0, 8)
+dummyCorner.Parent = createDummyButton
+
+createDummyButton.MouseButton1Click:Connect(function()
+	createPreviewDummy()
+end)
+
+-- Load Animation button
+local loadAnimButton = Instance.new("TextButton")
+loadAnimButton.Text = "🎬 Load Animation"
+loadAnimButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+loadAnimButton.TextSize = 12
+loadAnimButton.Font = Enum.Font.Gotham
+loadAnimButton.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+loadAnimButton.BorderSizePixel = 0
+loadAnimButton.Size = UDim2.new(0.5, -2, 0, 32)
+loadAnimButton.Position = UDim2.new(0.5, 0, 0, 325)
+loadAnimButton.Parent = timelineCard
+
+local loadAnimCorner = Instance.new("UICorner")
+loadAnimCorner.CornerRadius = UDim.new(0, 8)
+loadAnimCorner.Parent = loadAnimButton
+
+loadAnimButton.MouseButton1Click:Connect(function()
+	if not previewDummy then
+		createPreviewDummy()
+	end
+	loadAnimationOnDummy(currentMove.AnimId)
+end)
+
+-- Play/Pause button
+local playButton = Instance.new("TextButton")
+playButton.Text = "▶️ Play Preview"
+playButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+playButton.TextSize = 12
+playButton.Font = Enum.Font.Gotham
+playButton.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
+playButton.BorderSizePixel = 0
+playButton.Size = UDim2.new(0.5, -2, 0, 32)
+playButton.Position = UDim2.new(0, 0, 0, 365)
+playButton.Parent = timelineCard
+
+local playCorner = Instance.new("UICorner")
+playCorner.CornerRadius = UDim.new(0, 8)
+playCorner.Parent = playButton
+
+playButton.MouseButton1Click:Connect(function()
+	playPreviewAnimation()
+	playButton.Text = previewPlaying and "⏸️ Pause" or "▶️ Play Preview"
+end)
+
+-- Stop button
+local stopButton = Instance.new("TextButton")
+stopButton.Text = "⏹️ Stop"
+stopButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+stopButton.TextSize = 12
+stopButton.Font = Enum.Font.Gotham
+stopButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+stopButton.BorderSizePixel = 0
+stopButton.Size = UDim2.new(0.5, -2, 0, 32)
+stopButton.Position = UDim2.new(0.5, 0, 0, 365)
+stopButton.Parent = timelineCard
+
+local stopCorner = Instance.new("UICorner")
+stopCorner.CornerRadius = UDim.new(0, 8)
+stopCorner.Parent = stopButton
+
+stopButton.MouseButton1Click:Connect(function()
+	stopPreviewAnimation()
+	playButton.Text = "▶️ Play Preview"
+	if statusText then
+		statusText.Text = "Preview stopped"
+		task.wait(1)
+		if updateStatusFunc then updateStatusFunc() end
+	end
+end)
+
+-- Speed button
+local speedButton = Instance.new("TextButton")
+speedButton.Text = "⚡ Speed: 1.0x"
+speedButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedButton.TextSize = 11
+speedButton.Font = Enum.Font.Gotham
+speedButton.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+speedButton.BorderSizePixel = 0
+speedButton.Size = UDim2.new(0, 100, 0, 28)
+speedButton.Position = UDim2.new(1, -110, 0, 405)
+speedButton.Parent = timelineCard
+
+local speedCorner = Instance.new("UICorner")
+speedCorner.CornerRadius = UDim.new(0, 6)
+speedCorner.Parent = speedButton
+
+local speeds = {0.25, 0.5, 0.75, 1.0, 1.5, 2.0}
+local speedIndex = 4
+
+speedButton.MouseButton1Click:Connect(function()
+	speedIndex = speedIndex % #speeds + 1
+	previewSettings.PlaybackSpeed = speeds[speedIndex]
+	speedButton.Text = "⚡ Speed: " .. string.format("%.1f", previewSettings.PlaybackSpeed) .. "x"
 end)
 
 refreshEventListFunc()
@@ -1839,7 +2149,7 @@ infoLabel.Size = UDim2.new(1, 0, 0, 40)
 infoLabel.Position = UDim2.new(0, 0, 0, 145)
 infoLabel.Parent = exportCard
 
--- ========== CARD 6: CUTSCENE (with Angle + Speed) ==========
+-- ========== CARD 6: CUTSCENE ==========
 local cutsceneCard = createCard("🎬 Cutscene", 6)
 
 local enableToggle = Instance.new("TextButton")
@@ -2220,11 +2530,12 @@ rotationAngleValue.Changed:Connect(function(prop)
 		if val then
 			currentMove.Cutscene.RotationAngle = math.max(0, val)
 			rotationAngleValue.Text = tostring(currentMove.Cutscene.RotationAngle)
+			updateDurationInfo()
 		end
 	end
 end)
 
--- Rotation Speed Control (Hybrid)
+-- Rotation Speed Control
 local rotationSpeedRow = Instance.new("Frame")
 rotationSpeedRow.BackgroundTransparency = 1
 rotationSpeedRow.Size = UDim2.new(1, 0, 0, 70)
@@ -2264,6 +2575,7 @@ rotationSpeedValue.Changed:Connect(function(prop)
 		if val then
 			currentMove.Cutscene.RotationSpeed = math.max(1, val)
 			rotationSpeedValue.Text = tostring(currentMove.Cutscene.RotationSpeed)
+			updateDurationInfo()
 		end
 	end
 end)
@@ -2307,7 +2619,7 @@ for _, spd in ipairs(speedPresets) do
 	speedX = speedX + 45
 end
 
--- Duration info display (MUST be defined BEFORE it's called)
+-- Duration info display
 local durationInfo = Instance.new("TextLabel")
 durationInfo.Name = "DurationInfo"
 durationInfo.TextColor3 = Color3.fromRGB(100, 100, 110)
@@ -2328,29 +2640,6 @@ local function updateDurationInfo()
 	end
 end
 updateDurationInfo()
-
--- Now connect the Changed events AFTER updateDurationInfo is defined
-rotationAngleValue.Changed:Connect(function(prop)
-	if prop == "Text" then
-		local val = tonumber(rotationAngleValue.Text)
-		if val then
-			currentMove.Cutscene.RotationAngle = math.max(0, val)
-			rotationAngleValue.Text = tostring(currentMove.Cutscene.RotationAngle)
-			updateDurationInfo()
-		end
-	end
-end)
-
-rotationSpeedValue.Changed:Connect(function(prop)
-	if prop == "Text" then
-		local val = tonumber(rotationSpeedValue.Text)
-		if val then
-			currentMove.Cutscene.RotationSpeed = math.max(1, val)
-			rotationSpeedValue.Text = tostring(currentMove.Cutscene.RotationSpeed)
-			updateDurationInfo()
-		end
-	end
-end)
 
 -- Rotation Direction
 local rotationDirRow = Instance.new("Frame")
@@ -2435,10 +2724,7 @@ previewCutsceneButton.MouseButton1Click:Connect(function()
 		task.wait(0.5)
 	end
 
-	-- Get a target for rotation
 	local target = nil
-
-	-- Try to get player character first
 	local player = game.Players.LocalPlayer
 	local character = player and player.Character
 
@@ -2448,8 +2734,7 @@ previewCutsceneButton.MouseButton1Click:Connect(function()
 			statusText.Text = "Using your character for rotation"
 		end
 	else
-		-- Create a dummy character for preview
-		target = createDummyForPreview()
+		target = createRotationDummy()
 		if statusText then
 			statusText.Text = "Created dummy character for rotation"
 		end
@@ -3048,7 +3333,6 @@ local function showSupportDialog()
 	message.Position = UDim2.new(0, 10, 0, 50)
 	message.Parent = dialog
 
-	-- Separator line
 	local line1 = Instance.new("Frame")
 	line1.Size = UDim2.new(1, -40, 0, 1)
 	line1.Position = UDim2.new(0, 20, 0, 105)
@@ -3056,7 +3340,6 @@ local function showSupportDialog()
 	line1.BorderSizePixel = 0
 	line1.Parent = dialog
 
-	-- Donation Links Label
 	local donateLabel = Instance.new("TextLabel")
 	donateLabel.Text = "💝 Ways to Support:"
 	donateLabel.TextColor3 = Color3.fromRGB(200, 200, 210)
@@ -3068,9 +3351,8 @@ local function showSupportDialog()
 	donateLabel.Position = UDim2.new(0, 20, 0, 115)
 	donateLabel.Parent = dialog
 
-	-- Roblox Username (Robux donations)
 	local robuxText = Instance.new("TextLabel")
-	robuxText.Text = "🤖 Roblox: Send Robux to @Gorrilla567_h url(roblox.com/users/5241414167/profile)"
+	robuxText.Text = "🤖 Roblox: Send Robux to @Gorrilla567_h"
 	robuxText.TextColor3 = Color3.fromRGB(100, 150, 255)
 	robuxText.TextSize = 11
 	robuxText.Font = Enum.Font.Gotham
@@ -3080,7 +3362,6 @@ local function showSupportDialog()
 	robuxText.Position = UDim2.new(0, 20, 0, 140)
 	robuxText.Parent = dialog
 
-	-- PayPal Link Text (Update this with your actual PayPal link)
 	local paypalText = Instance.new("TextLabel")
 	paypalText.Text = "💵 PayPal: paypal.me/Gorrilla567h"
 	paypalText.TextColor3 = Color3.fromRGB(100, 150, 255)
@@ -3092,7 +3373,6 @@ local function showSupportDialog()
 	paypalText.Position = UDim2.new(0, 20, 0, 165)
 	paypalText.Parent = dialog
 
-	-- Ko-fi Link Text
 	local koFiText = Instance.new("TextLabel")
 	koFiText.Text = "☕ Ko-fi: ko-fi.com/gamegeektech_hope"
 	koFiText.TextColor3 = Color3.fromRGB(100, 150, 255)
@@ -3104,7 +3384,6 @@ local function showSupportDialog()
 	koFiText.Position = UDim2.new(0, 20, 0, 190)
 	koFiText.Parent = dialog
 
-	-- Note about Roblox Plus
 	local noteText = Instance.new("TextLabel")
 	noteText.Text = "※ Roblox Plus subscription required to send Robux"
 	noteText.TextColor3 = Color3.fromRGB(100, 100, 110)
@@ -3116,7 +3395,6 @@ local function showSupportDialog()
 	noteText.Position = UDim2.new(0, 20, 0, 212)
 	noteText.Parent = dialog
 
-	-- Update note
 	local updateNote = Instance.new("TextLabel")
 	updateNote.Text = "⭐ Updates will be posted on the Roblox Library page"
 	updateNote.TextColor3 = Color3.fromRGB(120, 120, 130)
@@ -3128,7 +3406,6 @@ local function showSupportDialog()
 	updateNote.Position = UDim2.new(0, 20, 0, 240)
 	updateNote.Parent = dialog
 
-	-- Close button
 	local closeBtn = Instance.new("TextButton")
 	closeBtn.Text = "Close"
 	closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -3222,7 +3499,9 @@ mainGui:GetPropertyChangedSignal("Enabled"):Connect(function()
 	if not mainGui.Enabled then
 		clearPreview()
 		cleanupCutsceneEffects()
-		destroyDummy()
+		destroyRotationDummy()
+		stopPreviewAnimation()
+		destroyPreviewDummy()
 	end
 end)
 
@@ -3238,7 +3517,7 @@ button.Click:Connect(function()
 	mainGui.Enabled = not mainGui.Enabled
 end)
 
-print("MotionForge v1.3.1 loaded! Angle + Speed control fixed.")]]></ProtectedString>
+print("MotionForge v1.4.1 loaded! Custom dummy creator fix applied.")]]></ProtectedString>
 			<bool name="Disabled">false</bool>
 			<Content name="LinkedSource"><null></null></Content>
 			<token name="RunContext">0</token>
