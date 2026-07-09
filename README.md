@@ -14,6 +14,8 @@
 - [Quick Start](#-quick-start)
 - [Usage Example](#-usage-example)
 - [Animation Preview](#-animation-preview)
+- [Cutscene Rotation Controls](#-cutscene-rotation-controls)
+- [Save / Load](#-save--load)
 - [Export Options](#-export-options)
 - [Built-in Templates](#-built-in-templates)
 - [Why MotionForge?](#-why-motionforge)
@@ -29,7 +31,7 @@
 | :--- | :--- |
 | **Visual Timeline Editor** | Add hitboxes, sounds, and effects at specific times with a simple click |
 | **Hitbox Visualizer** | See your hitbox in real-time with color-coded damage (green → yellow → red) |
-| **Cutscene System** | Camera shake, zoom, and rotation effects for epic super moves |
+| **Cutscene System** | Camera shake, zoom, and full rotation controls (angle, speed, direction) for epic super moves |
 | **One-Click Export** | Generate clean, valid, error-free Lua code instantly — fully fixed in v1.4.3 |
 | **Save/Load** | Persistent move storage across Studio sessions |
 | **Template Library** | Built-in templates (Dragon Punch, Kamehameha, etc.) + save your own |
@@ -111,6 +113,35 @@ Want to see exactly how your move looks before exporting? The built-in Animation
 
 ---
 
+## 🎥 Cutscene Rotation Controls
+
+When **Camera Rotate** is enabled in the Cutscene section, three extra controls appear to fine-tune the effect:
+
+| Control | Description |
+| :--- | :--- |
+| **Rotation Angle** | How many degrees the camera rotates around the character (e.g. 180° for a dramatic half-spin) |
+| **Rotation Speed** | How fast the camera rotates in degrees per second. Quick presets available: 60, 120, 180, 240, 360, 480, 720 °/s |
+| **Direction** | Toggle between **Clockwise** and **Counter-Clockwise** rotation |
+
+The plugin automatically calculates and displays the **estimated duration** of the rotation based on your angle and speed (e.g. 180° at 360°/s = 0.50s), so you know exactly how long the effect will last before you even test it.
+
+> 💡 **Tip:** Click **🎬 Preview Cutscene** to see all your cutscene effects (shake, zoom, rotation) live inside Studio without running the game.
+
+---
+
+## 💾 Save / Load
+
+MotionForge saves your moves persistently across Studio sessions using plugin storage — no external files needed.
+
+- **Save Current Move** — saves your move by name
+- **Load** — click any saved move in the list to load it instantly
+- **Delete** — **right-click** a saved move in the list to delete it
+- **Refresh List** — manually refresh the saved moves list
+
+> 💡 **Tip:** Move names are used as save keys, so renaming a move before saving creates a separate save entry.
+
+---
+
 ## 📦 Export Options
 
 | Method | Description |
@@ -146,6 +177,8 @@ Want to see exactly how your move looks before exporting? The built-in Animation
 ---
 
 ## 💖 Support Development
+
+> 💡 There's a **❤️ Support** button built right into the plugin's status bar at the bottom of the panel — click it anytime to see all the ways to support MotionForge without leaving Studio.
 
 - 💵 **PayPal:** [paypal.me/Gorrilla567h](https://paypal.me/Gorrilla567h)
 - ☕ **Ko-fi:** [ko-fi.com/gamegeektech_hope](https://ko-fi.com/gamegeektech_hope)
