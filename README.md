@@ -3,6 +3,7 @@
 **A free, open-source Roblox Studio plugin for building custom combat moves visually.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/Version-v1.4.3-brightgreen)](https://github.com/hopeigbinosa123/MotionForge/releases)
 [![Roblox](https://img.shields.io/badge/Roblox-Creator%20Store-blue)](https://create.roblox.com/store/asset/80433496048831/MotionForge-Beta)
 [![Made with Lua](https://img.shields.io/badge/Made%20with-Lua-2C2D72?logo=lua&logoColor=white)](https://www.lua.org/)
 
@@ -17,6 +18,7 @@
 - [Built-in Templates](#-built-in-templates)
 - [Why MotionForge?](#-why-motionforge)
 - [Support Development](#-support-development)
+- [Changelog](#-changelog)
 - [License](#-license)
 
 ---
@@ -28,7 +30,7 @@
 | **Visual Timeline Editor** | Add hitboxes, sounds, and effects at specific times with a simple click |
 | **Hitbox Visualizer** | See your hitbox in real-time with color-coded damage (green → yellow → red) |
 | **Cutscene System** | Camera shake, zoom, and rotation effects for epic super moves |
-| **One-Click Export** | Generate clean, professional Lua code instantly |
+| **One-Click Export** | Generate clean, valid, error-free Lua code instantly — fully fixed in v1.4.3 |
 | **Save/Load** | Persistent move storage across Studio sessions |
 | **Template Library** | Built-in templates (Dragon Punch, Kamehameha, etc.) + save your own |
 | **Animation Preview** | Spawn a dummy, load your Animation ID, and play/pause/stop with adjustable speed |
@@ -73,6 +75,7 @@ Once you've exported a move, use it in your game like this:
 ```lua
 -- In your game script
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HitboxSystem = game:GetService("ReplicatedStorage").HitboxSystem
 local DragonPunch = require(ReplicatedStorage.MotionForge_Moves.DragonPunch)
 
 -- When the player attacks
@@ -160,6 +163,16 @@ If you like MotionForge, please:
 - 👤 Follow me on Roblox as well (just for me to be happy a little 😄)
 
 Thank you! 🚀
+
+---
+
+## 📋 Changelog
+
+### v1.4.3 — Stability Release
+- ✅ **Exporter completely fixed** — exported moves now generate valid, error-free Lua code
+- ✅ **Correct HitboxSystem path** — exports now use `game:GetService("ReplicatedStorage").HitboxSystem` instead of the broken `script.Parent.HitboxSystem`
+- ✅ **All export syntax bugs resolved** — exported moves load and run correctly without errors
+- ✅ Plugin is now fully stable and production-ready
 
 ---
 
